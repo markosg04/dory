@@ -5,7 +5,8 @@ use ark_std::rand::RngCore;
 use std::fs::File;
 use std::io::{Read, Write};
 
-// @TODO(markosg04) g_fin setup cache update
+// @TODO(markosg04) we don't need both g1_vec and g1_pows (and likewise same for g2)
+// This would entail just using slices everywhere rather than the usage of g1_pows[nu]
 
 /// Dory transparent setup for the prover
 #[derive(Clone, Debug)]
@@ -62,7 +63,8 @@ pub struct VerifierSetup<E: Pairing> {
 impl<E: Pairing> ProverSetup<E> {
     /// Constructor for new prover setup
     pub fn new<R: RngCore>(mut rng: R, max_log_n: usize) -> Self {
-        let n = 1usize << max_log_n;
+        // We want \sqrt(n) generators for each of G1, G2
+        let n = 1usize << (max_log_n / 2);
 
         let g1_vec: Vec<_> = (0..n).map(|_| E::G1::random(&mut rng)).collect();
         let g2_vec: Vec<_> = (0..n).map(|_| E::G2::random(&mut rng)).collect();
@@ -73,7 +75,9 @@ impl<E: Pairing> ProverSetup<E> {
 
         let mut g1_pows = Vec::with_capacity(max_log_n + 1);
         let mut g2_pows = Vec::with_capacity(max_log_n + 1);
-        for k in 0..=max_log_n {
+
+        // Store each k up to sqrt(n)
+        for k in 0..=max_log_n / 2 {
             let len = 1 << k;
             g1_pows.push(g1_vec[..len].to_vec());
             g2_pows.push(g2_vec[..len].to_vec());
@@ -348,6 +352,7 @@ where
     ) -> Result<(), ark_serialize::SerializationError> {
         self.g1_vec.serialize_with_mode(&mut writer, compress)?;
         self.g2_vec.serialize_with_mode(&mut writer, compress)?;
+        self.g_fin.serialize_with_mode(&mut writer, compress)?;
         self.h1.serialize_with_mode(&mut writer, compress)?;
         self.h2.serialize_with_mode(&mut writer, compress)?;
         self.ht.serialize_with_mode(&mut writer, compress)?;
@@ -359,6 +364,7 @@ where
     fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
         self.g1_vec.serialized_size(compress)
             + self.g2_vec.serialized_size(compress)
+            + self.g_fin.serialized_size(compress)
             + self.h1.serialized_size(compress)
             + self.h2.serialized_size(compress)
             + self.ht.serialized_size(compress)
@@ -381,7 +387,7 @@ where
     ) -> Result<Self, ark_serialize::SerializationError> {
         let g1_vec = Vec::<E::G1>::deserialize_with_mode(&mut reader, compress, validate)?;
         let g2_vec = Vec::<E::G2>::deserialize_with_mode(&mut reader, compress, validate)?;
-        let g_fin = <E::G2>::deserialize_with_mode(&mut reader, compress, validate)?;
+        let g_fin = E::G2::deserialize_with_mode(&mut reader, compress, validate)?;
         let h1 = E::G1::deserialize_with_mode(&mut reader, compress, validate)?;
         let h2 = E::G2::deserialize_with_mode(&mut reader, compress, validate)?;
         let ht = E::GT::deserialize_with_mode(&mut reader, compress, validate)?;
@@ -410,6 +416,7 @@ where
     fn check(&self) -> Result<(), SerializationError> {
         self.g1_vec.check()?;
         self.g2_vec.check()?;
+        self.g_fin.check()?;
         self.h1.check()?;
         self.h2.check()?;
         self.ht.check()?;
@@ -441,6 +448,7 @@ where
         self.h1.serialize_with_mode(&mut writer, compress)?;
         self.h2.serialize_with_mode(&mut writer, compress)?;
         self.ht.serialize_with_mode(&mut writer, compress)?;
+        self.g_fin.serialize_with_mode(&mut writer, compress)?;
         self.max_log_n.serialize_with_mode(&mut writer, compress)?;
         Ok(())
     }
@@ -456,6 +464,7 @@ where
             + self.h1.serialized_size(compress)
             + self.h2.serialized_size(compress)
             + self.ht.serialized_size(compress)
+            + self.g_fin.serialized_size(compress)
             + self.max_log_n.serialized_size(compress)
     }
 }
@@ -481,8 +490,8 @@ where
         let g2_0 = E::G2::deserialize_with_mode(&mut reader, compress, validate)?;
         let h1 = E::G1::deserialize_with_mode(&mut reader, compress, validate)?;
         let h2 = E::G2::deserialize_with_mode(&mut reader, compress, validate)?;
-        let g_fin = E::G2::deserialize_with_mode(&mut reader, compress, validate)?;
         let ht = E::GT::deserialize_with_mode(&mut reader, compress, validate)?;
+        let g_fin = E::G2::deserialize_with_mode(&mut reader, compress, validate)?;
         let max_log_n = usize::deserialize_with_mode(&mut reader, compress, validate)?;
 
         Ok(VerifierSetup {
@@ -519,6 +528,7 @@ where
         self.h1.check()?;
         self.h2.check()?;
         self.ht.check()?;
+        self.g_fin.check()?;
         self.max_log_n.check()?;
         Ok(())
     }
