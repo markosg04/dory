@@ -150,6 +150,18 @@ where
             vmv_message: self.vmv_message.clone(),
         }
     }
+
+    /// Create a DoryProofBuilder from a DoryProof and a fresh transcript
+    pub fn from_proof(proof: DoryProof<G1, G2, GT>, transcript: T) -> Self {
+        Self {
+            first_messages: proof.first_messages,
+            second_messages: proof.second_messages,
+            final_message: proof.final_message,
+            vmv_message: proof.vmv_message,
+            transcript,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<G1Arg, G2Arg, GTArg, ScalarArg, T> ProofBuilder
