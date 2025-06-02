@@ -7,8 +7,7 @@ use crate::{
     arithmetic::{Group, MultiScalarMul, Pairing},
     build_vmv_prover_state,
     builder::{DoryProofBuilder, DoryVerifyBuilder, VerificationBuilder},
-    commit_to_rows,
-    compute_left_right_vec,
+    commit_to_rows, compute_left_right_vec,
     error::DoryError,
     inner_product::inner_product_verify,
     inner_product_prove,
@@ -17,8 +16,7 @@ use crate::{
     state::{DoryProverState, DoryVerifierState},
     transcript::Transcript,
     vmv::{compute_nu, VMVVerifierState},
-    vmv_state_to_dory_prover_state,
-    ProofBuilder,
+    vmv_state_to_dory_prover_state, ProofBuilder,
 };
 
 /// Implements the Eval-VMV-RE protocol from Dory Section 5
@@ -250,7 +248,7 @@ pub fn verify_evaluation_proof<
     b_points: &[<E::G1 as Group>::Scalar],
     sigma: usize,
     verifier_setup: &VerifierSetup<E>,
-    domain: &[u8],
+    transcript: T,
 ) -> Result<(), DoryError>
 where
     E::G1: Group,
@@ -275,7 +273,7 @@ where
     let vmv_state = build_vmv_verifier_state::<E>(product, b_points, a_commit, sigma, nu);
 
     // 5. Create verifier builder from proof
-    let verify_builder = DoryVerifyBuilder::new_from_proof(domain, proof);
+    let verify_builder = DoryVerifyBuilder::new_from_proof(proof, transcript);
 
     // 6. Eval VMV re verifier side
     let (verify_builder, verifier_state) =

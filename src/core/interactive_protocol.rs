@@ -335,7 +335,7 @@ where
         // Decrease the rounds
         self.nu -= 1;
 
-        // TODO(markosg04): change to Ok ? 
+        // TODO(markosg04): change to Ok ?
         true
     }
 

@@ -2,7 +2,7 @@
 use ark_bn254::{Fq12, Fr, G1Affine};
 use blake2::Blake2s256;
 use dory::{
-    arithmetic::{Field, Group, MultiScalarMul},
+    arithmetic::{Field, Group},
     curve::{test_rng, ArkBn254Pairing, DummyMsm, G2AffineWrapper, OptimizedMsmG1, OptimizedMsmG2},
     setup::ProverSetup,
     toy_transcript::ToyTranscript,
@@ -84,6 +84,9 @@ fn test_soundness_tamper_vmv_message_c() {
         println!("Tampering with VMV message C...");
         vmv_msg.c = Fq12::random(&mut rng);
 
+        // Create fresh transcript for verification
+        let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
         let verification_result = verify_evaluation_proof::<
             ArkBn254Pairing,
             ToyTranscript<Fr, Blake2s256>,
@@ -98,7 +101,7 @@ fn test_soundness_tamper_vmv_message_c() {
             &b_points,
             sigma,
             &verifier_setup,
-            domain,
+            verify_transcript,
         );
 
         assert!(
@@ -146,6 +149,9 @@ fn test_soundness_tamper_vmv_message_d2() {
         println!("Tampering with VMV message D2...");
         vmv_msg.d2 = Fq12::random(&mut rng);
 
+        // Create fresh transcript for verification
+        let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
         let verification_result = verify_evaluation_proof::<
             ArkBn254Pairing,
             ToyTranscript<Fr, Blake2s256>,
@@ -160,7 +166,7 @@ fn test_soundness_tamper_vmv_message_d2() {
             &b_points,
             sigma,
             &verifier_setup,
-            domain,
+            verify_transcript,
         );
 
         assert!(
@@ -208,6 +214,9 @@ fn test_soundness_tamper_vmv_message_e1() {
         println!("Tampering with VMV message E1...");
         vmv_msg.e1 = G1Affine::random(&mut rng);
 
+        // Create fresh transcript for verification
+        let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
         let verification_result = verify_evaluation_proof::<
             ArkBn254Pairing,
             ToyTranscript<Fr, Blake2s256>,
@@ -222,7 +231,7 @@ fn test_soundness_tamper_vmv_message_e1() {
             &b_points,
             sigma,
             &verifier_setup,
-            domain,
+            verify_transcript,
         );
 
         assert!(
@@ -268,6 +277,9 @@ fn test_soundness_wrong_commitment() {
     // Replace with random commitment
     commitment_batch[0] = Fq12::random(&mut rng);
 
+    // Create fresh transcript for verification
+    let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
     let verification_result = verify_evaluation_proof::<
         ArkBn254Pairing,
         ToyTranscript<Fr, Blake2s256>,
@@ -282,7 +294,7 @@ fn test_soundness_wrong_commitment() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     assert!(
@@ -341,7 +353,7 @@ fn test_soundness_wrong_evaluation() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -402,7 +414,7 @@ fn test_soundness_wrong_evaluation_point() {
         &wrong_b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -472,7 +484,7 @@ fn test_soundness_commitment_evaluation_mismatch() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -531,7 +543,7 @@ fn test_soundness_wrong_batching_factors() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -598,7 +610,7 @@ fn test_soundness_tamper_proof_structure() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -665,7 +677,7 @@ fn test_soundness_offset_manipulation() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -733,7 +745,7 @@ fn test_soundness_different_polynomial_degree() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(
@@ -782,6 +794,9 @@ fn test_soundness_all_vmv_messages_tampered() {
         vmv_msg.d2 = Fq12::random(&mut rng);
         vmv_msg.e1 = G1Affine::random(&mut rng);
 
+        // Create fresh transcript for verification
+        let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
         let verification_result = verify_evaluation_proof::<
             ArkBn254Pairing,
             ToyTranscript<Fr, Blake2s256>,
@@ -796,7 +811,7 @@ fn test_soundness_all_vmv_messages_tampered() {
             &b_points,
             sigma,
             &verifier_setup,
-            domain,
+            verify_transcript,
         );
 
         assert!(
@@ -874,7 +889,7 @@ fn test_soundness_relationship_attack() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        ToyTranscript::<Fr, Blake2s256>::new(domain),
     );
 
     assert!(

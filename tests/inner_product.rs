@@ -115,7 +115,7 @@ fn test_inner_product_prove_verify() {
         Fq12,
         Fr,
         ToyTranscript<Fr, Blake2s256>,
-    >::new_from_proof(domain, proof);
+    >::new_from_proof(proof, ToyTranscript::<Fr, Blake2s256>::new(domain));
 
     // ----- Verification phase -----
     println!("Verifying proof...");
@@ -223,6 +223,8 @@ fn test_inner_product_verify_should_fail() {
             let corrupt_d1_left = Fq12::random(&mut rng);
             corrupt_proof.first_messages[0].d1_left = corrupt_d1_left;
 
+            let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
             // create a verifier
             let verify_builder = DoryVerifyBuilder::<
                 G1Affine,
@@ -230,7 +232,7 @@ fn test_inner_product_verify_should_fail() {
                 Fq12,
                 Fr,
                 ToyTranscript<Fr, Blake2s256>,
-            >::new_from_proof(domain, corrupt_proof);
+            >::new_from_proof(corrupt_proof, verify_transcript);
 
             // Test verification
             println!("Verifying corrupted proof...");

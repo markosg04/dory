@@ -89,7 +89,9 @@ fn test_soundness_scalar_product_wrong_e1() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(result.is_err(), "Verification should fail with wrong E1");
@@ -136,7 +138,9 @@ fn test_soundness_scalar_product_wrong_e2() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(result.is_err(), "Verification should fail with wrong E2");
@@ -184,7 +188,9 @@ fn test_soundness_scalar_product_both_wrong() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -239,7 +245,9 @@ fn test_soundness_scalar_product_scaled_values() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -307,7 +315,9 @@ fn test_soundness_scalar_product_relationship_attack() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof2);
+        >::new_from_proof(
+            proof2, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -355,7 +365,9 @@ fn test_soundness_scalar_product_missing_message() {
         Fq12,
         Fr,
         ToyTranscript<Fr, Blake2s256>,
-    >::new_from_proof(domain, proof_builder);
+    >::new_from_proof(
+        proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+    );
     let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
     assert!(
@@ -410,7 +422,9 @@ fn test_soundness_scalar_product_pairing_check() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -463,7 +477,9 @@ fn test_soundness_scalar_product_after_valid_rounds() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -520,7 +536,9 @@ fn test_soundness_scalar_product_identity_elements() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -581,7 +599,9 @@ fn test_soundness_scalar_product_consistency_check() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(

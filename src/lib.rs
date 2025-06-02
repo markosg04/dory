@@ -236,7 +236,7 @@ where
 /// - `proof`: The evaluation proof to verify
 /// - `sigma`: matrix to commit is of size 2^sigma
 /// - `verifier_setup`: The verifier setup containing verification elements
-/// - `domain`: The transcript domain separator
+/// - `transcript`: Fresh transcript for verification
 ///
 /// # Returns
 /// `Ok(())` if verification succeeds, `Err(DoryError)` if it fails
@@ -253,7 +253,7 @@ pub fn verify<
     proof: DoryProofBuilder<E::G1, E::G2, E::GT, <E::G1 as Group>::Scalar, T>,
     sigma: usize,
     verifier_setup: &VerifierSetup<E>,
-    domain: &[u8],
+    transcript: T,
 ) -> Result<(), DoryError>
 where
     E::G1: Group,
@@ -275,7 +275,7 @@ where
         point,
         sigma,
         verifier_setup,
-        domain,
+        transcript,
     )
 }
 

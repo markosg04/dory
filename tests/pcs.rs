@@ -12,7 +12,7 @@ fn test_pcs_api_workflow() {
     let domain = b"dory_pcs_test";
 
     // Multilinear polynomial parameters
-    let num_variables = 21;
+    let num_variables = 22;
     let sigma = 11; // sigma must be <= max_log_n / 2 for the SRS
     let num_coeffs = 1 << num_variables;
 
@@ -57,8 +57,9 @@ fn test_pcs_api_workflow() {
     // Print proof statistics before verification consumes it
     proof.print_proof_stats();
 
-    // Verify
+    // Verify - create fresh transcript for verification
     let verify_start = Instant::now();
+    let verify_transcript = create_transcript::<Fr>(domain);
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment,
         evaluation,
@@ -66,7 +67,7 @@ fn test_pcs_api_workflow() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
     let verify_time = verify_start.elapsed();
     println!("Verify time: {:?}", verify_time);

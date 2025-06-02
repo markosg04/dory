@@ -47,7 +47,6 @@ fn setup_test_environment(
     let e_2 = OptimizedMsmG2::msm(&prover_setup.g2_vec[..1 << log_n], &s1);
     let verifier_state = DoryVerifierState::new_with_s(c, d_1, d_2, e_1, e_2, s1, s2, log_n);
 
-
     (prover_setup, verifier_setup, prover_state, verifier_state)
 }
 
@@ -87,7 +86,9 @@ fn test_soundness_tamper_d1_left() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -136,7 +137,9 @@ fn test_soundness_tamper_d1_right() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -185,7 +188,9 @@ fn test_soundness_tamper_d2_left() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -234,7 +239,9 @@ fn test_soundness_tamper_d2_right() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -283,7 +290,9 @@ fn test_soundness_tamper_e1_beta() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -332,7 +341,9 @@ fn test_soundness_tamper_e2_beta() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -381,7 +392,9 @@ fn test_soundness_tamper_c_plus() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -430,7 +443,9 @@ fn test_soundness_tamper_c_minus() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -479,7 +494,9 @@ fn test_soundness_tamper_e1_plus() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -528,7 +545,9 @@ fn test_soundness_tamper_e1_minus() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -577,7 +596,9 @@ fn test_soundness_tamper_e2_plus() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -626,7 +647,9 @@ fn test_soundness_tamper_e2_minus() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -675,7 +698,9 @@ fn test_soundness_tamper_final_e1() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -724,7 +749,9 @@ fn test_soundness_tamper_final_e2() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -774,7 +801,9 @@ fn test_soundness_swap_d1_values() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -824,7 +853,9 @@ fn test_soundness_swap_c_values() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -877,7 +908,9 @@ fn test_soundness_scale_d1_values() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -929,7 +962,9 @@ fn test_soundness_multi_round_tampering() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -979,7 +1014,9 @@ fn test_soundness_tamper_last_round() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -1036,7 +1073,9 @@ fn test_soundness_maintain_sum_attack() {
             Fq12,
             Fr,
             ToyTranscript<Fr, Blake2s256>,
-        >::new_from_proof(domain, proof_builder);
+        >::new_from_proof(
+            proof_builder, ToyTranscript::<Fr, Blake2s256>::new(domain)
+        );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(

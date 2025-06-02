@@ -125,6 +125,9 @@ fn test_evaluation_proof_sigma_2() {
         );
     let verifier_setup = prover_setup.to_verifier_setup();
 
+    // Create fresh transcript for verification
+    let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
     // Call verify_evaluation_proof
     let verification_result = verify_evaluation_proof::<
         ArkBn254Pairing,
@@ -140,7 +143,7 @@ fn test_evaluation_proof_sigma_2() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     let verify_time = verify_start.elapsed();
@@ -245,6 +248,9 @@ fn test_evaluation_proof_verification_should_fail() {
 
         let verifier_setup = prover_setup.to_verifier_setup();
 
+        // Create fresh transcript for verification
+        let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
         let verification_result = verify_evaluation_proof::<
             ArkBn254Pairing,
             ToyTranscript<Fr, Blake2s256>,
@@ -259,7 +265,7 @@ fn test_evaluation_proof_verification_should_fail() {
             &b_points,
             sigma,
             &verifier_setup,
-            domain,
+            verify_transcript,
         );
 
         println!(
@@ -373,6 +379,9 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
 
     let verifier_setup = prover_setup.to_verifier_setup();
 
+    // Create fresh transcript for verification
+    let verify_transcript = ToyTranscript::<Fr, Blake2s256>::new(domain);
+
     let verification_result = dory::vmv::verify_evaluation_proof::<
         ArkBn254Pairing,
         ToyTranscript<Fr, Blake2s256>,
@@ -387,7 +396,7 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
         &b_points,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     let verify_time = verify_start.elapsed();

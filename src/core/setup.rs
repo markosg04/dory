@@ -300,5 +300,3 @@ impl<E: Pairing> VerifierSetup<E> {
         }
     }
 }
-
-

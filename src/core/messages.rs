@@ -1,12 +1,23 @@
 //! Defines the standards for messages between the prover and verifier
+use crate::arithmetic::{Field, Group};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use serde::{Deserialize, Serialize};
-use crate::arithmetic::{Group, Field};
 /// The first prover message in the Dory-Reduce portion (Section 3.2) of the Dory protocol.
 ///
 /// This consists of $D_{1L}$, $D_{1R}$, $D_{2L}$, $D_{2R}$, $E_{1\beta}$, and $E_{2\beta}$.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct FirstReduceMessage<G1, G2, GT> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct FirstReduceMessage<G1, G2, GT>
 where
     G1: Group,
     G2: Group,
@@ -30,8 +41,19 @@ where
 ///
 /// The challenge, $\beta$, is a random scalar. Additionally, $\beta$ must be non-zero because
 /// the protocol uses $\beta^{-1}$, which we also include here.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct FirstReduceChallenge<Scalar> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct FirstReduceChallenge<Scalar>
 where
     Scalar: Field,
 {
@@ -44,8 +66,19 @@ where
 /// The second prover message in the Dory-Reduce portion (Section 3.2) of the Dory protocol.
 ///
 /// This consists of $C_+$, $C_-$, $E_{1+}$, $E_{1-}$, $E_{2+}$, and $E_{2-}$.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct SecondReduceMessage<G1, G2, GT> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct SecondReduceMessage<G1, G2, GT>
 where
     G1: Group,
     G2: Group,
@@ -69,8 +102,19 @@ where
 ///
 /// The challenge, $\alpha$, is a random scalar. Additionally, $\alpha$ must be non-zero because
 /// the protocol uses $\alpha^{-1}$, which we also include here.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct SecondReduceChallenge<Scalar> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct SecondReduceChallenge<Scalar>
 where
     Scalar: Field,
 {
@@ -81,8 +125,19 @@ where
 }
 
 /// This is the random chalenge (d, d^-1) for the Scalar-Product protocol
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct ScalarProductChallenge<Scalar> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct ScalarProductChallenge<Scalar>
 where
     Scalar: Field,
 {
@@ -96,8 +151,19 @@ where
 ///
 /// The challenge, $\gamma$, is a random scalar. Additionally, $\gamma$ must be non-zero because
 /// the protocol uses $\gamma^{-1}$, which we also include here.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct FoldScalarsChallenge<Scalar> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct FoldScalarsChallenge<Scalar>
 where
     Scalar: Field,
 {
@@ -110,8 +176,19 @@ where
 /// The prover message in the Scalar-Product portion (Section 3.1) of the Dory protocol.
 ///
 /// This consists of $E_1$ and $E_2$.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct ScalarProductMessage<G1, G2> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct ScalarProductMessage<G1, G2>
 where
     G1: Group,
     G2: Group,
@@ -127,8 +204,19 @@ where
 /// This consists of $C$, $D_2$, and $E_1$.
 /// Note that the paper also includes `e2` but it turns out that the verifier
 /// can compute this value, since $e2 = y \cdot \Gamma_{2,fin}$, which are known to V.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, CanonicalSerialize, CanonicalDeserialize)]
-pub struct VMVMessage<G1, GT> 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    CanonicalSerialize,
+    CanonicalDeserialize,
+)]
+pub struct VMVMessage<G1, GT>
 where
     G1: Group,
     GT: Group,

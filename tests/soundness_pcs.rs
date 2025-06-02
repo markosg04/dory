@@ -61,6 +61,8 @@ fn test_soundness_wrong_evaluation() {
 
     // Try to verify with wrong evaluation
     let wrong_evaluation = correct_evaluation + Fr::rand(&mut rng);
+    // Create fresh transcript for verification
+    let verify_transcript = create_transcript::<Fr>(domain);
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment,
         wrong_evaluation,
@@ -68,7 +70,7 @@ fn test_soundness_wrong_evaluation() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     assert!(
@@ -102,6 +104,8 @@ fn test_soundness_wrong_commitment() {
 
     // Try to verify with wrong commitment
     let wrong_commitment = Fq12::rand(&mut rng);
+    // Create fresh transcript for verification
+    let verify_transcript = create_transcript::<Fr>(domain);
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         wrong_commitment,
         evaluation,
@@ -109,7 +113,7 @@ fn test_soundness_wrong_commitment() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     assert!(
@@ -148,6 +152,8 @@ fn test_soundness_wrong_evaluation_point() {
     let mut wrong_point = point.clone();
     wrong_point[0] = wrong_point[0] + Fr::rand(&mut rng);
 
+    // Create fresh transcript for verification
+    let verify_transcript = create_transcript::<Fr>(domain);
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment,
         evaluation,
@@ -155,7 +161,7 @@ fn test_soundness_wrong_evaluation_point() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     assert!(
@@ -203,6 +209,8 @@ fn test_soundness_binding_property() {
     );
 
     // Try to use proof1 with commitment2
+    // Create fresh transcript for verification
+    let verify_transcript = create_transcript::<Fr>(domain);
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment2,
         eval1,
@@ -210,7 +218,7 @@ fn test_soundness_binding_property() {
         proof1,
         sigma,
         &verifier_setup,
-        domain,
+        verify_transcript,
     );
 
     assert!(
@@ -257,7 +265,7 @@ fn test_soundness_polynomial_mismatch() {
         proof2,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(
@@ -303,7 +311,7 @@ fn test_soundness_offset_manipulation() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(
@@ -356,7 +364,7 @@ fn test_soundness_zero_polynomial() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(
@@ -409,7 +417,7 @@ fn test_soundness_constant_polynomial() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(
@@ -454,7 +462,7 @@ fn test_soundness_completeness_multiple_points() {
             proof,
             sigma,
             &verifier_setup,
-            domain,
+            create_transcript::<Fr>(domain),
         );
 
         assert!(result.is_ok(), "Valid proof should verify for point {}", i);
@@ -511,7 +519,7 @@ fn test_soundness_cross_polynomial_attack() {
         proof2,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
     assert!(
         result1.is_err(),
@@ -526,7 +534,7 @@ fn test_soundness_cross_polynomial_attack() {
         proof1,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
     assert!(
         result2.is_err(),
@@ -595,7 +603,7 @@ fn test_soundness_batch_verification() {
             proof,
             sigma,
             &verifier_setup,
-            domain,
+            create_transcript::<Fr>(domain),
         );
 
         assert!(
@@ -646,7 +654,7 @@ fn test_soundness_sparse_polynomial() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(
@@ -696,7 +704,7 @@ fn test_soundness_commitment_consistency() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     // Generate proof again for second verification (can't clone DoryProofBuilder)
@@ -721,7 +729,7 @@ fn test_soundness_commitment_consistency() {
         proof2,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(
@@ -765,7 +773,7 @@ fn test_soundness_degree_bound() {
         proof,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(result.is_ok(), "Maximum degree polynomial should verify");
@@ -794,7 +802,7 @@ fn test_soundness_degree_bound() {
         proof2,
         sigma,
         &verifier_setup,
-        domain,
+        create_transcript::<Fr>(domain),
     );
 
     assert!(

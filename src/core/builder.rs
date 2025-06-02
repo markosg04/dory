@@ -19,7 +19,7 @@ use crate::{
 
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
-pub struct DoryProof<G1, G2, GT> 
+pub struct DoryProof<G1, G2, GT>
 where
     G1: Group,
     G2: Group,
@@ -351,20 +351,17 @@ where
         }
     }
 
-    /// Build from a *proof* (any concrete `DoryProofBuilder`) and a transcript.
-    pub fn new_from_proof(domain: &[u8], proof: DoryProofBuilder<G1, G2, GT, Scalar, T>) -> Self {
+    /// Build from a *proof* (any concrete `DoryProofBuilder`) and a fresh transcript.
+    /// The caller is responsible for providing a fresh transcript with the correct domain.
+    pub fn new_from_proof(proof: DoryProofBuilder<G1, G2, GT, Scalar, T>, transcript: T) -> Self {
         // destructure
         let DoryProofBuilder {
-            mut transcript,
             first_messages,
             second_messages,
             final_message,
             vmv_message,
             ..
         } = proof;
-
-        // reset for the verifier run
-        transcript.reset(domain);
 
         let scalar_msg = final_message.expect("proof must contain the scalar-product message");
 
