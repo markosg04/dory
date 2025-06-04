@@ -263,8 +263,9 @@ where
     let product: <E::G1 as Group>::Scalar = evaluations
         .iter()
         .zip(batching_factors)
-        .map(|(&e, &f)| e * f)
-        .sum();
+        .fold(<E::G1 as Group>::Scalar::zero(), |acc, (&e, &f)| {
+            acc.add(&e.mul(&f))
+        });
 
     // 3. Compute nu
     let nu = compute_nu(b_points.len(), sigma);

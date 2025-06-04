@@ -80,15 +80,11 @@ fn test_soundness_tamper_d1_left() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[0].d1_left = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -131,15 +127,11 @@ fn test_soundness_tamper_d1_right() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[0].d1_right = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -182,15 +174,11 @@ fn test_soundness_tamper_d2_left() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[0].d2_left = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -233,15 +221,11 @@ fn test_soundness_tamper_d2_right() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[0].d2_right = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -284,15 +268,11 @@ fn test_soundness_tamper_e1_beta() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[0].e1_beta = G1Affine::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -335,15 +315,11 @@ fn test_soundness_tamper_e2_beta() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[0].e2_beta = G2AffineWrapper::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -386,15 +362,11 @@ fn test_soundness_tamper_c_plus() {
     if !proof_builder.second_messages.is_empty() {
         proof_builder.second_messages[0].c_plus = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -437,15 +409,11 @@ fn test_soundness_tamper_c_minus() {
     if !proof_builder.second_messages.is_empty() {
         proof_builder.second_messages[0].c_minus = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -488,15 +456,11 @@ fn test_soundness_tamper_e1_plus() {
     if !proof_builder.second_messages.is_empty() {
         proof_builder.second_messages[0].e1_plus = G1Affine::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -539,15 +503,11 @@ fn test_soundness_tamper_e1_minus() {
     if !proof_builder.second_messages.is_empty() {
         proof_builder.second_messages[0].e1_minus = G1Affine::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -590,15 +550,11 @@ fn test_soundness_tamper_e2_plus() {
     if !proof_builder.second_messages.is_empty() {
         proof_builder.second_messages[0].e2_plus = G2AffineWrapper::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -641,15 +597,11 @@ fn test_soundness_tamper_e2_minus() {
     if !proof_builder.second_messages.is_empty() {
         proof_builder.second_messages[0].e2_minus = G2AffineWrapper::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -692,15 +644,11 @@ fn test_soundness_tamper_final_e1() {
     if let Some(final_msg) = &mut proof_builder.final_message {
         final_msg.e1 = G1Affine::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -743,15 +691,11 @@ fn test_soundness_tamper_final_e2() {
     if let Some(final_msg) = &mut proof_builder.final_message {
         final_msg.e2 = G2AffineWrapper::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -795,15 +739,11 @@ fn test_soundness_swap_d1_values() {
         proof_builder.first_messages[0].d1_left = proof_builder.first_messages[0].d1_right.clone();
         proof_builder.first_messages[0].d1_right = temp;
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -847,15 +787,11 @@ fn test_soundness_swap_c_values() {
         proof_builder.second_messages[0].c_plus = proof_builder.second_messages[0].c_minus.clone();
         proof_builder.second_messages[0].c_minus = temp;
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -902,15 +838,11 @@ fn test_soundness_scale_d1_values() {
         proof_builder.first_messages[0].d1_right =
             proof_builder.first_messages[0].d1_right.scale(&scale);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -956,15 +888,11 @@ fn test_soundness_multi_round_tampering() {
         // Tamper with second round
         proof_builder.first_messages[1].e1_beta = G1Affine::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -1008,15 +936,11 @@ fn test_soundness_tamper_last_round() {
     if !proof_builder.first_messages.is_empty() {
         proof_builder.first_messages[last_round].d2_right = Fq12::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -1067,15 +991,11 @@ fn test_soundness_maintain_sum_attack() {
         proof_builder.first_messages[0].d1_left = random_val.clone();
         proof_builder.first_messages[0].d1_right = d1_sum - random_val;
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(

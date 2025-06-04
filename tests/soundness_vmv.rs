@@ -708,18 +708,14 @@ fn test_soundness_different_polynomial_degree() {
 
     // Generate proof for wrong polynomial
     let transcript = ToyTranscript::new(domain);
-    let proof = create_evaluation_proof::<
-        ArkBn254Pairing,
-        ToyTranscript,
-        OptimizedMsmG1,
-        OptimizedMsmG2,
-    >(
-        transcript,
-        &a_wrong,
-        &b_points[..nu - 1],
-        sigma - 1,
-        &prover_setup,
-    );
+    let proof =
+        create_evaluation_proof::<ArkBn254Pairing, ToyTranscript, OptimizedMsmG1, OptimizedMsmG2>(
+            transcript,
+            &a_wrong,
+            &b_points[..nu - 1],
+            sigma - 1,
+            &prover_setup,
+        );
 
     // Get verification data for original polynomial
     let (commitment_batch, batching_factors, evaluations) =

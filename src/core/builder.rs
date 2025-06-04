@@ -17,7 +17,7 @@ use crate::{
 
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
-pub struct DoryProof<G1, G2, GT> 
+pub struct DoryProof<G1, G2, GT>
 where
     G1: Group,
     G2: Group,

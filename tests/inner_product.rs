@@ -109,13 +109,11 @@ fn test_inner_product_prove_verify() {
     println!("Proof generated in: {:?}", proof_start.elapsed());
 
     // create a verifier
-    let verify_builder = DoryVerifyBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_from_proof(proof, ToyTranscript::new(domain));
+    let verify_builder =
+        DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+            proof,
+            ToyTranscript::new(domain),
+        );
 
     // ----- Verification phase -----
     println!("Verifying proof...");

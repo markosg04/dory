@@ -83,15 +83,11 @@ fn test_soundness_scalar_product_wrong_e1() {
         println!("Tampering with scalar product E1...");
         final_msg.e1 = G1Affine::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(result.is_err(), "Verification should fail with wrong E1");
@@ -132,15 +128,11 @@ fn test_soundness_scalar_product_wrong_e2() {
         println!("Tampering with scalar product E2...");
         final_msg.e2 = G2AffineWrapper::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(result.is_err(), "Verification should fail with wrong E2");
@@ -182,15 +174,11 @@ fn test_soundness_scalar_product_both_wrong() {
         final_msg.e1 = G1Affine::random(&mut rng);
         final_msg.e2 = G2AffineWrapper::random(&mut rng);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -239,15 +227,11 @@ fn test_soundness_scalar_product_scaled_values() {
         final_msg.e1 = final_msg.e1.scale(&scale);
         final_msg.e2 = final_msg.e2.scale(&scale_inv);
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -309,15 +293,11 @@ fn test_soundness_scalar_product_relationship_attack() {
         // Take E1 from proof1 but keep E2 from proof2
         final_msg2.e1 = final_msg1.e1.clone();
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof2, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof2,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -359,15 +339,11 @@ fn test_soundness_scalar_product_missing_message() {
     println!("Removing scalar product message...");
     proof_builder.final_message = None;
 
-    let verify_builder = DoryVerifyBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_from_proof(
-        proof_builder, ToyTranscript::new(domain)
-    );
+    let verify_builder =
+        DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+            proof_builder,
+            ToyTranscript::new(domain),
+        );
     let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
     assert!(
@@ -416,15 +392,11 @@ fn test_soundness_scalar_product_pairing_check() {
         final_msg.e1 = random_e1;
         final_msg.e2 = random_e2;
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -471,15 +443,11 @@ fn test_soundness_scalar_product_after_valid_rounds() {
         let tampered_e1 = final_msg.e1.add(&G1Affine::rand(&mut rng));
         final_msg.e1 = tampered_e1;
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -530,15 +498,11 @@ fn test_soundness_scalar_product_identity_elements() {
         final_msg.e1 = G1Affine::identity();
         final_msg.e2 = G2AffineWrapper::identity();
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
@@ -593,15 +557,11 @@ fn test_soundness_scalar_product_consistency_check() {
 
         *final_msg = new_msg;
 
-        let verify_builder = DoryVerifyBuilder::<
-            G1Affine,
-            G2AffineWrapper,
-            Fq12,
-            Fr,
-            ToyTranscript,
-        >::new_from_proof(
-            proof_builder, ToyTranscript::new(domain)
-        );
+        let verify_builder =
+            DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
+                proof_builder,
+                ToyTranscript::new(domain),
+            );
         let result = inner_product_verify(verify_builder, verifier_state, &verifier_setup, log_n);
 
         assert!(
