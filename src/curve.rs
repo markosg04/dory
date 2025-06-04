@@ -348,7 +348,7 @@ impl Group for Fq12 {
 pub type Bn254Pairing = ArkBn254Pairing;
 
 /// Generic wrapper that could be extended to work with any arkworks Pairing
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ArkPairingWrapper<P: ArkPairing>(std::marker::PhantomData<P>);
 
 impl<P: ArkPairing> ArkPairingWrapper<P> {
