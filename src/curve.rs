@@ -17,66 +17,7 @@ pub fn test_rng() -> StdRng {
     StdRng::from_seed(seed)
 }
 
-/* --------- Field trait for Fr --------------------------------------- */
-impl Field for Fr {
-    fn zero() -> Self {
-        Zero::zero()
-    }
-    fn one() -> Self {
-        One::one()
-    }
-    fn is_zero(&self) -> bool {
-        Zero::is_zero(self)
-    }
 
-    fn add(&self, rhs: &Self) -> Self {
-        *self + *rhs
-    }
-    fn sub(&self, rhs: &Self) -> Self {
-        *self - *rhs
-    }
-    fn mul(&self, rhs: &Self) -> Self {
-        *self * *rhs
-    }
-    fn inv(&self) -> Option<Self> {
-        if Zero::is_zero(self) {
-            None
-        } else {
-            Some(self.inverse().unwrap())
-        }
-    }
-    fn random<R: RngCore>(_rng: &mut R) -> Self {
-        // We use our own fixed RNG for testing
-        let mut rng = test_rng();
-        Fr::rand(&mut rng)
-    }
-}
-
-/* --------- Group trait for G1Affine -------------------------------- */
-impl Group for G1Affine {
-    type Scalar = Fr;
-
-    fn identity() -> Self {
-        G1Affine::identity()
-    }
-
-    fn add(&self, rhs: &Self) -> Self {
-        (self.into_group() + rhs.into_group()).into_affine()
-    }
-
-    fn neg(&self) -> Self {
-        (-self.into_group()).into_affine()
-    }
-
-    fn scale(&self, k: &Self::Scalar) -> Self {
-        self.mul_bigint((*k).into_bigint()).into_affine()
-    }
-
-    fn random<R: RngCore>(_rng: &mut R) -> Self {
-        let mut rng = test_rng();
-        G1Projective::rand(&mut rng).into_affine()
-    }
-}
 
 /// G1Affine and G2Affine are the same up to alias from arkworks.
 /// Hence, we have to use newType idiom here to avoid compiler conflicts
@@ -213,38 +154,6 @@ impl Group for G2AffineWrapper {
     }
 }
 
-/* --------- Group trait for Fq12 (GT) ------------------------------- */
-impl Group for Fq12 {
-    type Scalar = Fr;
-
-    fn identity() -> Self {
-        Self::one()
-    }
-
-    fn add(&self, rhs: &Self) -> Self {
-        *self * *rhs // Multiplicative group
-    }
-
-    fn neg(&self) -> Self {
-        if Zero::is_zero(self) {
-            *self
-        } else {
-            self.inverse().unwrap()
-        }
-    }
-
-    fn scale(&self, k: &Self::Scalar) -> Self {
-        // We convert to BigInt representation suitable for powering
-        let repr = (*k).into_bigint();
-        self.pow(repr)
-    }
-
-    fn random<R: RngCore>(_rng: &mut R) -> Self {
-        // We use our own fixed RNG for testing
-        let mut rng = test_rng();
-        Self::rand(&mut rng)
-    }
-}
 
 /* --------- lightweight Pairing wrapper ----------------------------- */
 #[derive(Clone, Debug)]
@@ -340,3 +249,153 @@ impl<G: Group> MultiScalarMul<G> for DummyMsm<G> {
             })
     }
 }
+
+/* --------- Field trait for Fr --------------------------------------- */
+impl Field for Fr {
+    fn zero() -> Self {
+        Zero::zero()
+    }
+    fn one() -> Self {
+        One::one()
+    }
+    fn is_zero(&self) -> bool {
+        Zero::is_zero(self)
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        *self + *rhs
+    }
+    fn sub(&self, rhs: &Self) -> Self {
+        *self - *rhs
+    }
+    fn mul(&self, rhs: &Self) -> Self {
+        *self * *rhs
+    }
+    fn inv(&self) -> Option<Self> {
+        if Zero::is_zero(self) {
+            None
+        } else {
+            Some(self.inverse().unwrap())
+        }
+    }
+    fn random<R: RngCore>(_rng: &mut R) -> Self {
+        // We use our own fixed RNG for testing
+        let mut rng = test_rng();
+        Fr::rand(&mut rng)
+    }
+}
+
+/* --------- Group trait for G1Affine -------------------------------- */
+impl Group for G1Affine {
+    type Scalar = Fr;
+
+    fn identity() -> Self {
+        G1Affine::identity()
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        (self.into_group() + rhs.into_group()).into_affine()
+    }
+
+    fn neg(&self) -> Self {
+        (-self.into_group()).into_affine()
+    }
+
+    fn scale(&self, k: &Self::Scalar) -> Self {
+        self.mul_bigint((*k).into_bigint()).into_affine()
+    }
+
+    fn random<R: RngCore>(_rng: &mut R) -> Self {
+        let mut rng = test_rng();
+        G1Projective::rand(&mut rng).into_affine()
+    }
+}
+
+/* --------- Group trait for Fq12 (GT) ------------------------------- */
+impl Group for Fq12 {
+    type Scalar = Fr;
+
+    fn identity() -> Self {
+        Self::one()
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        *self * *rhs // Multiplicative group
+    }
+
+    fn neg(&self) -> Self {
+        if Zero::is_zero(self) {
+            *self
+        } else {
+            self.inverse().unwrap()
+        }
+    }
+
+    fn scale(&self, k: &Self::Scalar) -> Self {
+        // We convert to BigInt representation suitable for powering
+        let repr = (*k).into_bigint();
+        self.pow(repr)
+    }
+
+    fn random<R: RngCore>(_rng: &mut R) -> Self {
+        // We use our own fixed RNG for testing
+        let mut rng = test_rng();
+        Self::rand(&mut rng)
+    }
+}
+
+/* --------- Generic support for external curves ---------------- */
+pub type Bn254Pairing = ArkBn254Pairing;
+
+/// Generic wrapper that could be extended to work with any arkworks Pairing
+#[derive(Clone, Debug, Copy)]
+pub struct ArkPairingWrapper<P: ArkPairing>(std::marker::PhantomData<P>);
+
+impl<P: ArkPairing> ArkPairingWrapper<P> {
+    /// Create a new wrapper instance (zero-cost)
+    pub fn new() -> Self {
+        Self(std::marker::PhantomData)
+    }
+}
+
+impl<P: ArkPairing> Default for ArkPairingWrapper<P> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<P: ArkPairing> Pairing for ArkPairingWrapper<P>
+where
+    P::ScalarField: Field + Clone,
+    P::G1Affine: Group<Scalar = P::ScalarField>,
+    P::G2Affine: Group<Scalar = P::ScalarField>,
+{
+    type G1 = P::G1Affine;
+    type G2 = P::G2Affine;
+    type GT = Fq12; // This would need to be curve-specific for non-BN254
+
+    fn pair(_p: &Self::G1, _q: &Self::G2) -> Self::GT {
+        // For a real implementation, this would use P::pairing and convert to GT
+        todo!("Curve-specific implementation needed - see ArkBn254Pairing for example")
+    }
+
+    fn multi_pair(ps: &[Self::G1], qs: &[Self::G2]) -> Self::GT {
+        // Default implementation using individual pairs
+        assert_eq!(
+            ps.len(),
+            qs.len(),
+            "multi_pair requires equal length vectors"
+        );
+
+        if ps.is_empty() {
+            return Self::GT::identity();
+        }
+
+        ps.iter()
+            .zip(qs.iter())
+            .fold(Self::GT::identity(), |acc, (p, q)| {
+                acc.add(&Self::pair(p, q))
+            })
+    }
+}
+
