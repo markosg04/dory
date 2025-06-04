@@ -19,7 +19,7 @@ use crate::{
 
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
-pub struct DoryProof<G1, G2, GT>
+pub struct DoryProof<G1, G2, GT> 
 where
     G1: Group,
     G2: Group,
@@ -159,6 +159,21 @@ where
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
             transcript,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Create a DoryProofBuilder from a DoryProof with a default transcript
+    pub fn from_proof_no_transcript(proof: DoryProof<G1, G2, GT>) -> Self
+    where
+        T: Default,
+    {
+        Self {
+            first_messages: proof.first_messages,
+            second_messages: proof.second_messages,
+            final_message: proof.final_message,
+            vmv_message: proof.vmv_message,
+            transcript: T::default(),
             _phantom: PhantomData,
         }
     }
