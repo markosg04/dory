@@ -59,24 +59,45 @@ pub trait Polynomial<F: Field, G1: Group<Scalar = F>> {
         commitments
     }
 
-    /// Computes the vector-matrix product L^T * M where M is the polynomial as a matrix
-    fn vector_matrix_product(&self, l_vec: &[F]) -> Vec<F> {
-        let n = l_vec.len();
-        let mut result = vec![F::zero(); n];
+    /// Computes the vector-matrix product v = M * R where M is the polynomial as a matrix
+    /// IMPORTANT: This computes M * R, NOT L^T * M. This is a bespoke choice that deviates 
+    /// from the paper slightly to align with the VMV protocol implementation.
+    /// 
+    /// # Arguments
+    /// * `right_vec` - The R vector (column evaluation weights)
+    /// * `sigma` - log₂(columns) - matrix width  
+    /// * `nu` - log₂(rows) - matrix height
+    ///
+    /// # Returns
+    /// Result vector v where v[i] = sum_j M[i,j] * R[j]
+    fn vector_matrix_product(&self, right_vec: &[F], sigma: usize, nu: usize) -> Vec<F> {
+        let mut v = vec![F::zero(); 1 << nu]; // Result: v = M × R
+        let cols_per_row = 1 << sigma;
         let len = self.len();
 
-        for row in 0..n {
-            for col in 0..n {
-                let idx = row * n + col;
-                if idx < len {
-                    let coeff = self.get(idx);
-                    let product = l_vec[row].mul(&coeff);
-                    result[col] = result[col].add(&product);
+        // Process each row of matrix M
+        for row_idx in 0..(1 << nu) {
+            let row_start = row_idx * cols_per_row;
+            let mut row_sum = F::zero();
+
+            // Compute dot product of row with R vector: row · R
+            for col_idx in 0..cols_per_row {
+                if col_idx >= right_vec.len() {
+                    break;
+                }
+
+                let coeff_idx = row_start + col_idx;
+                if coeff_idx < len {
+                    let coeff = self.get(coeff_idx);
+                    let product = coeff.mul(&right_vec[col_idx]);
+                    row_sum = row_sum.add(&product);
                 }
             }
+
+            v[row_idx] = row_sum;
         }
 
-        result
+        v
     }
 }
 
@@ -240,46 +261,3 @@ pub fn compute_l_r_tensors<F: Field>(
     (l_coords, r_coords)
 }
 
-/// Computes v = L^T × M in Dory's VMV protocol
-/// First step of Vector-Matrix-Vector: L^T * M
-pub fn compute_v_vec<F, G1, P>(
-    a: &P,          // Polynomial coefficients (flattened matrix M)
-    left_vec: &[F], // L vector (row evaluation weights)
-    sigma: usize,   // log₂(columns) - matrix width
-    nu: usize,      // log₂(rows) - matrix height
-) -> Vec<F>
-where
-    F: Field,
-    G1: Group<Scalar = F>,
-    P: Polynomial<F, G1> + ?Sized,
-{
-    let mut v = vec![F::zero(); 1 << nu]; // Result: v = L^T × M
-    let cols_per_row = 1 << sigma;
-    let len = a.len();
-
-    // Process each row of matrix M
-    for row_idx in 0..(1 << nu) {
-        if row_idx >= left_vec.len() {
-            break;
-        }
-
-        let l_weight = &left_vec[row_idx]; // Weight for this row
-        let row_start = row_idx * cols_per_row;
-
-        // Add weighted row to result: v += l_weight * row
-        for col_idx in 0..cols_per_row {
-            if col_idx >= v.len() {
-                break;
-            }
-
-            let coeff_idx = row_start + col_idx;
-            if coeff_idx < len {
-                let coeff = a.get(coeff_idx);
-                let product = l_weight.mul(&coeff);
-                v[col_idx] = v[col_idx].add(&product);
-            }
-        }
-    }
-
-    v
-}

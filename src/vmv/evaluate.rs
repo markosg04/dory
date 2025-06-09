@@ -195,8 +195,8 @@ where
 
     // Extract values from VMV verifier state
     let d_1 = vmv_state.t;
-    let s1_tensor = vmv_state.r_tensor;
-    let s2_tensor = vmv_state.l_tensor;
+    let s1_tensor = vmv_state.l_tensor;
+    let s2_tensor = vmv_state.r_tensor;
     let nu = vmv_state.nu;
 
     // We don't compute e2 on prover side as an optimization (values to produce e2 are known)

@@ -2,7 +2,7 @@
 //! Defines VMV states for both provers, verifiers
 use crate::{
     arithmetic::{Field, Group, Pairing},
-    poly::{compute_left_right_vec, compute_v_vec, Polynomial},
+    poly::{compute_left_right_vec, Polynomial},
     setup::ProverSetup,
     state::DoryProverState,
     MultiScalarMul,
@@ -14,8 +14,8 @@ where
     E::G1: Group,
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
-    /// Evaluations of the columns of the matrix. That is, v = transpose(L) * M.
-    /// v[j] = <L, M[_, j]> = sum_{i=0}^{2^nu} M[i,j] L[i].
+    /// Evaluations of the rows of the matrix. That is, v = M * R.
+    /// v[i] = <M[i, _], R> = sum_{j=0}^{2^nu} M[i,j] R[j].
     pub(super) v_vec: Vec<<E::G1 as Group>::Scalar>,
 
     /// Commitments to the rows of the matrix.
@@ -103,7 +103,8 @@ where
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
     let (l_vec, r_vec) = compute_left_right_vec(b_point, sigma, nu);
-    let v_vec = compute_v_vec(polynomial, &l_vec, sigma, nu);
+    // IMPORTANT: We do v_vec = M*R rather than L^T*M in the paper -- this is equivalent.
+    let v_vec = polynomial.vector_matrix_product(&r_vec, sigma, nu);
 
     VMVProverState {
         v_vec,
@@ -124,10 +125,10 @@ where
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
     // Extract values from VMV state
-    // Note: the paper has a typo and we want to actually set s1 = R, s2 = L (as we do below)
+    // Since v_vec is now M*R, we swap the assignments: s1 = L, s2 = R
     let v_vec = vmv_state.v_vec;
-    let s1 = vmv_state.r_vec; // intermediate vector from L^T × M
-    let s2 = vmv_state.l_vec; // left evaluation vector
+    let s1 = vmv_state.l_vec; // left evaluation vector
+    let s2 = vmv_state.r_vec; // right evaluation vector
     let v1 = vmv_state.t_vec_prime; // row commitments
     let nu = vmv_state.nu; // nu
 
