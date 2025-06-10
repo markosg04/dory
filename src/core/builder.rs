@@ -74,6 +74,10 @@ pub trait ProofBuilder {
     #[must_use]
     /// Append a [`VMVMessage`] to the proof and transcript.
     fn append_vmv_message(self, message: VMVMessage<Self::G1, Self::GT>) -> Self;
+    
+    /// Draw a [`ScalarProductChallenge`] from the transcript.
+    #[must_use]
+    fn challenge_scalar_product_scalars(self) -> (ScalarProductChallenge<Self::Scalar>, Self);
 }
 
 /// Concrete ProofBuilder to collect messages and perform transcript tasks
@@ -257,6 +261,16 @@ where
         let challenge: FoldScalarsChallenge<ScalarArg> = FoldScalarsChallenge {
             gamma,
             gamma_inverse,
+        };
+        (challenge, self)
+    }
+
+    fn challenge_scalar_product_scalars(mut self) -> (ScalarProductChallenge<Self::Scalar>, Self) {
+        let d = self.transcript.challenge_scalar(b"scalar_product_d");
+        let d_inv = d.inv().unwrap();
+        let challenge = ScalarProductChallenge {
+            d,
+            d_inverse: d_inv,
         };
         (challenge, self)
     }
