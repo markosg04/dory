@@ -6,7 +6,7 @@ use crate::arithmetic::{Field, Group, MultiScalarMul};
 pub trait Polynomial<F: Field, G1: Group<Scalar = F>> {
     /// Get a coefficient at the given index, returns zero if out of bounds
     fn get(&self, index: usize) -> F;
-    
+
     /// Returns the number of coefficients in the polynomial
     fn len(&self) -> usize;
 
@@ -45,7 +45,7 @@ pub trait Polynomial<F: Field, G1: Group<Scalar = F>> {
             let row_start = row * row_len;
             let row_end = (row_start + row_len).min(len);
             let actual_row_len = row_end - row_start;
-            
+
             if actual_row_len > 0 {
                 let mut row_coeffs = vec![F::zero(); actual_row_len];
                 for i in 0..actual_row_len {
@@ -59,48 +59,47 @@ pub trait Polynomial<F: Field, G1: Group<Scalar = F>> {
         commitments
     }
 
-    /// Computes the vector-matrix product v = M * R where M is the polynomial as a matrix
-    /// IMPORTANT: This computes M * R, NOT L^T * M. This is a bespoke choice that deviates 
-    /// from the paper slightly to align with the VMV protocol implementation.
-    /// 
+    /// Computes the vector-matrix product v = L^T * M where M is the polynomial as a matrix
+    ///
     /// # Arguments
-    /// * `right_vec` - The R vector (column evaluation weights)
+    /// * `left_vec` - The L vector (row evaluation weights)
     /// * `sigma` - log₂(columns) - matrix width  
     /// * `nu` - log₂(rows) - matrix height
     ///
     /// # Returns
-    /// Result vector v where v[i] = sum_j M[i,j] * R[j]
-    fn vector_matrix_product(&self, right_vec: &[F], sigma: usize, nu: usize) -> Vec<F> {
-        let mut v = vec![F::zero(); 1 << nu]; // Result: v = M × R
+    /// Result vector v where v[j] = sum_i L[i] * M[i,j]
+    fn vector_matrix_product(&self, left_vec: &[F], sigma: usize, nu: usize) -> Vec<F> {
+        let mut v = vec![F::zero(); 1 << sigma]; // Result: v = L^T × M
         let cols_per_row = 1 << sigma;
         let len = self.len();
 
         // Process each row of matrix M
         for row_idx in 0..(1 << nu) {
-            let row_start = row_idx * cols_per_row;
-            let mut row_sum = F::zero();
+            if row_idx >= left_vec.len() {
+                break;
+            }
 
-            // Compute dot product of row with R vector: row · R
+            let l_weight = &left_vec[row_idx]; // Weight for this row
+            let row_start = row_idx * cols_per_row;
+
+            // Add weighted row to result: v += l_weight * row
             for col_idx in 0..cols_per_row {
-                if col_idx >= right_vec.len() {
+                if col_idx >= v.len() {
                     break;
                 }
 
                 let coeff_idx = row_start + col_idx;
                 if coeff_idx < len {
                     let coeff = self.get(coeff_idx);
-                    let product = coeff.mul(&right_vec[col_idx]);
-                    row_sum = row_sum.add(&product);
+                    let product = l_weight.mul(&coeff);
+                    v[col_idx] = v[col_idx].add(&product);
                 }
             }
-
-            v[row_idx] = row_sum;
         }
 
         v
     }
 }
-
 
 /// Compute the evaluation of a multilinear polynomial at a given point
 /// Uses the lagrange evaluation basis
@@ -228,11 +227,7 @@ pub fn compute_left_right_vec<F: Field>(
 
 /// Splits evaluation point coordinates into left/right tensors for matrix operations.
 /// Outputs can be fed to `multilinear_lagrange_vec` to get the same result as `compute_left_right_vec`.
-pub fn compute_l_r_tensors<F: Field>(
-    b_point: &[F],
-    sigma: usize,
-    nu: usize,
-) -> (Vec<F>, Vec<F>) {
+pub fn compute_l_r_tensors<F: Field>(b_point: &[F], sigma: usize, nu: usize) -> (Vec<F>, Vec<F>) {
     let mut r_coords = vec![F::zero(); 1 << nu]; // Column coordinates
     let mut l_coords = vec![F::zero(); 1 << nu]; // Row coordinates
     let num_vars = b_point.len();
@@ -260,4 +255,3 @@ pub fn compute_l_r_tensors<F: Field>(
 
     (l_coords, r_coords)
 }
-

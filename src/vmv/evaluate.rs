@@ -195,11 +195,13 @@ where
 
     // Extract values from VMV verifier state
     let d_1 = vmv_state.t;
-    let s1_tensor = vmv_state.l_tensor;
-    let s2_tensor = vmv_state.r_tensor;
+    let s1_tensor = vmv_state.r_tensor;
+    let s2_tensor = vmv_state.l_tensor;
     let nu = vmv_state.nu;
 
     // We don't compute e2 on prover side as an optimization (values to produce e2 are known)
+    // IMPORTANT: this is implicitly satisfying sigma protocol 1 of the`eval_vmv_re` code box
+    // that is we are equivalently checking, e2 = s1 * Gamma_{2,fin}
     let e_2 = verifier_setup.g_fin.scale(&vmv_state.y);
 
     let mut verifier_state = DoryVerifierState::new(c, d_1, d_2, e_1, e_2, nu);
@@ -231,6 +233,15 @@ where
     let vmv_message = verify_builder.process_vmv_message();
     let final_verifier_state =
         vmv_state_to_dory_verifier_state(vmv_state, &vmv_message, verifier_setup);
+
+    // IMPORTANT:
+    // Sigma protocol 2 of `eval_vmv_re`: d2 = e(e1, Gamma_{2, fin})
+    let pairing_check = E::pair(&vmv_message.e1, &verifier_setup.g_fin);
+    assert!(
+        vmv_message.d2 == pairing_check,
+        "Sigma protocol 2 verification failed: d2 != e(e1, Gamma_{{2, fin}})"
+    );
+
     // Return the updated verify builder and unchanged verifier state
     // The verifier state conversion should be handled by the caller
     (verify_builder, final_verifier_state)

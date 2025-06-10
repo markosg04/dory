@@ -378,7 +378,7 @@ impl<'a, F: Field, G1: Group<Scalar = F>> Polynomial<F, G1> for StandardPolynomi
             F::zero()
         }
     }
-    
+
     fn len(&self) -> usize {
         self.coeffs.len()
     }
