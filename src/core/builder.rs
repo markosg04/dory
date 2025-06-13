@@ -74,7 +74,7 @@ pub trait ProofBuilder {
     #[must_use]
     /// Append a [`VMVMessage`] to the proof and transcript.
     fn append_vmv_message(self, message: VMVMessage<Self::G1, Self::GT>) -> Self;
-    
+
     /// Draw a [`ScalarProductChallenge`] from the transcript.
     #[must_use]
     fn challenge_scalar_product_scalars(self) -> (ScalarProductChallenge<Self::Scalar>, Self);

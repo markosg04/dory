@@ -7,15 +7,19 @@ use std::time::Instant;
 use dory::curve::{
     test_rng, ArkBn254Pairing, DummyMsm, OptimizedMsmG1, OptimizedMsmG2, StandardPolynomial,
 };
+use dory::profiler::{clear_profile_data, print_profile_report};
 
 #[test]
 fn test_pcs_api_workflow() {
+    // Clear any existing profile data
+    clear_profile_data();
+
     let mut rng = test_rng();
     let domain = b"dory_pcs_test";
 
     // Multilinear polynomial parameters
-    let num_variables = 22;
-    let sigma = 11; // sigma must be <= max_log_n / 2 for the SRS
+    let num_variables = 24;
+    let sigma = 12; // sigma must be <= max_log_n / 2 for the SRS
     let num_coeffs = 1 << num_variables;
 
     println!(
@@ -25,7 +29,7 @@ fn test_pcs_api_workflow() {
 
     // Setup with preloaded SRS file
     let setup_start = Instant::now();
-    let srs_path = "./k_11.srs";
+    let srs_path = "./k_12.srs";
     let (prover_setup, verifier_setup) =
         setup_with_srs_file::<ArkBn254Pairing, _>(&mut rng, num_variables, Some(srs_path));
     let setup_time = setup_start.elapsed();
@@ -81,4 +85,7 @@ fn test_pcs_api_workflow() {
 
     assert!(result.is_ok(), "PCS verification should succeed");
     println!("✓ PCS API test passed");
+
+    // Print detailed profiling report
+    print_profile_report();
 }

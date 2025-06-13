@@ -58,11 +58,14 @@ pub trait ProverState {
     /// Panics if the state is not in an appropriate round. That is, if the last Reduce round has not been completed. This method
     /// assumes that the $v_i$ and $s_i$ vectors are of length at least 2.
     #[must_use]
-    fn reduce_combine(
+    fn reduce_combine<M1, M2>(
         self,
         setup: &Self::Setup,
         first_challenge: FirstReduceChallenge<Self::Scalar>,
-    ) -> Self;
+    ) -> Self
+    where
+        M1: MultiScalarMul<Self::G1>,
+        M2: MultiScalarMul<Self::G2>;
     /// Computes the [`SecondReduceMessage`] from the state.
     /// That is,
     /// $$\begin{aligned}
@@ -95,11 +98,14 @@ pub trait ProverState {
     /// Panics if the state is not in an appropriate round. That is, if the last Reduce round has not been completed. This method
     /// assumes that the $v_i$ and $s_i$ vectors are of length at least 2.
     #[must_use]
-    fn reduce_fold(
+    fn reduce_fold<M1, M2>(
         self,
         setup: &Self::Setup,
         second_challenge: SecondReduceChallenge<Self::Scalar>,
-    ) -> Self;
+    ) -> Self
+    where
+        M1: MultiScalarMul<Self::G1>,
+        M2: MultiScalarMul<Self::G2>;
     /// Computes the [`ScalarProductMessage`] using [`FoldScalarsChallenge`]. That is,
     /// $$\begin{aligned}
     /// E_1 &= v_1 + \gamma s_1 H_2 & E_2 &= v_2 + \gamma^{-1} s_2 H_1

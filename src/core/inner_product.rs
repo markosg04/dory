@@ -27,12 +27,12 @@ where
         let first_reduce_msg = state.compute_first_reduce_message::<M1, M2>(setup);
         let (challenge, builder) = builder.append_first_reduce_message(first_reduce_msg);
 
-        let state = state.reduce_combine(setup, challenge);
+        let state = state.reduce_combine::<M1, M2>(setup, challenge);
 
         let second_reduce_msg = state.compute_second_reduce_message::<M1, M2>(setup);
         let (challenge, builder) = builder.append_second_reduce_message(second_reduce_msg);
 
-        let folded_state = state.reduce_fold(setup, challenge);
+        let folded_state = state.reduce_fold::<M1, M2>(setup, challenge);
         (builder, folded_state)
     });
     let (challenge, builder) = builder.challenge_fold_scalars();

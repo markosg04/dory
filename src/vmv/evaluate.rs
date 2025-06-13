@@ -11,6 +11,7 @@ use crate::{
     inner_product_prove,
     messages::VMVMessage,
     poly::{compute_left_right_vec, Polynomial},
+    profiler::profile,
     setup::{ProverSetup, VerifierSetup},
     state::{DoryProverState, DoryVerifierState},
     transcript::Transcript,
@@ -30,6 +31,7 @@ fn eval_vmv_re_prove<
     E: Pairing,
     T: Transcript<Scalar = <E::G1 as Group>::Scalar>,
     M1: MultiScalarMul<E::G1>,
+    M2: MultiScalarMul<E::G2>,
 >(
     mut proof_builder: DoryProofBuilder<E::G1, E::G2, E::GT, <E::G1 as Group>::Scalar, T>,
     mut prover_state: DoryProverState<E>,
@@ -56,8 +58,12 @@ where
     // --- Protocol computations (Dory Section 5) ---
 
     // C = e(⟨T~₀, ~v⟩, Γ₂,fin)
-    let t_vec_v_inner_product = M1::msm(&prover_state.v1, &v_vec);
-    let c_val = E::pair(&t_vec_v_inner_product, &prover_setup.g_fin);
+    let t_vec_v_inner_product = profile("eval_vmv_re_prove::msm_v1_v_vec", || {
+        M1::msm(&prover_state.v1, &v_vec)
+    });
+    let c_val = profile("eval_vmv_re_prove::pair_c_val", || {
+        E::pair(&t_vec_v_inner_product, &prover_setup.g_fin)
+    });
 
     // D₂ = e(⟨Γ₁[nu], ~v⟩, Γ₂,fin)
     // Protocol: D₂ = e(⟨Γ₁,~v⟩, Γ₂,fin) + rD₂·HT (randomness omitted)
@@ -68,19 +74,25 @@ where
             &[][..]
         };
 
-    let gamma1_v_inner_product = if g1_bases_at_nu.is_empty() || prover_state.s1.is_empty() {
-        E::G1::identity()
-    } else {
-        M1::msm(g1_bases_at_nu, &v_vec)
-    };
-    let d2_val = E::pair(&gamma1_v_inner_product, &prover_setup.g_fin);
+    let gamma1_v_inner_product = profile("eval_vmv_re_prove::msm_gamma1_v", || {
+        if g1_bases_at_nu.is_empty() || prover_state.s1.is_empty() {
+            E::G1::identity()
+        } else {
+            M1::msm(g1_bases_at_nu, &v_vec)
+        }
+    });
+    let d2_val = profile("eval_vmv_re_prove::pair_d2_val", || {
+        E::pair(&gamma1_v_inner_product, &prover_setup.g_fin)
+    });
 
     // E₁ = ⟨T~₀, ~L⟩
     // Protocol: E₁ = ⟨~L, C₀⟩ + rE₁·H₁ (randomness omitted)
     if prover_state.s2.is_empty() && !prover_state.v1.is_empty() {
         println!("s2 is empty but v1 is not in E₁ calculation");
     }
-    let e1_val = M1::msm(&prover_state.v1, &prover_state.s2);
+    let e1_val = profile("eval_vmv_re_prove::msm_e1_val", || {
+        M1::msm(&prover_state.v1, &prover_state.s2)
+    });
 
     // Create VMV message for transcript
     let vmv_message = VMVMessage {
@@ -92,10 +104,10 @@ where
 
     // Transform intermediate vector ~v into G2 elements for next phase
     // v₂ = ~v · Γ₂,fin (scalar multiplication in G2)
-    let updated_v2 = v_vec
-        .iter()
-        .map(|v_element| prover_setup.g_fin.scale(v_element))
-        .collect::<Vec<E::G2>>();
+    let updated_v2 = profile("eval_vmv_re_prove::g2_scaling", || {
+        // Use fixed-base vectorized MSM since we're scaling the same base (g_fin) by each scalar
+        M2::fixed_base_vector_msm(&prover_setup.g_fin, &v_vec)
+    });
 
     prover_state.v2 = updated_v2;
 
@@ -123,32 +135,45 @@ where
     <E::G1 as Group>::Scalar: Field,
 {
     // 1. Compute parameters
-    let nu = compute_nu(point.len(), sigma);
+    let nu = profile("create_evaluation_proof::compute_nu", || {
+        compute_nu(point.len(), sigma)
+    });
     // println!("nu length: {:?}", nu); -> useful for debug
 
     // 2. Compute row commits (T` in the paper?)
-    let t_vec_prime = commit_to_rows::<E, M1, P>(polynomial, sigma, nu, prover_setup);
+    let t_vec_prime = profile("create_evaluation_proof::commit_to_rows", || {
+        commit_to_rows::<E, M1, P>(polynomial, sigma, nu, prover_setup)
+    });
 
     // 3. Build VMV prover state
-    let vmv_state = build_vmv_prover_state::<E, P>(polynomial, point, t_vec_prime, sigma, nu);
+    let vmv_state = profile("create_evaluation_proof::build_vmv_prover_state", || {
+        build_vmv_prover_state::<E, P>(polynomial, point, t_vec_prime, sigma, nu)
+    });
 
     // 4. Convert VMV state to DoryProverState
-    let (v_vec, prover_state) = vmv_state_to_dory_prover_state(vmv_state, prover_setup);
+    let (v_vec, prover_state) = profile(
+        "create_evaluation_proof::vmv_state_to_dory_prover_state",
+        || vmv_state_to_dory_prover_state(vmv_state, prover_setup),
+    );
 
     // 5. Initialize the DoryProofBuilder
     let proof_builder = DoryProofBuilder::new(initial_transcript);
 
     // 6. Initial commitments
     let (final_proof_builder, proof_state) =
-        eval_vmv_re_prove::<E, T, M1>(proof_builder, prover_state, v_vec, prover_setup);
+        profile("create_evaluation_proof::eval_vmv_re_prove", || {
+            eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec, prover_setup)
+        });
 
     // prove!
-    inner_product_prove::<_, _, _, _, _, _, _, M1, M2>(
-        final_proof_builder,
-        proof_state,
-        prover_setup,
-        nu,
-    )
+    profile("create_evaluation_proof::inner_product_prove", || {
+        inner_product_prove::<_, _, _, _, _, _, _, M1, M2>(
+            final_proof_builder,
+            proof_state,
+            prover_setup,
+            nu,
+        )
+    })
 }
 
 // VERIFIER ANALOGUE:

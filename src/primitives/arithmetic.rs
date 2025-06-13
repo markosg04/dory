@@ -67,4 +67,41 @@ pub trait Pairing: Sized + Send + Sync {
 
 pub trait MultiScalarMul<G: Group> {
     fn msm(bases: &[G], scalars: &[G::Scalar]) -> G;
+
+    /// Fixed-base multi-scalar multiplication where the same base is scaled by multiple scalars
+    /// Computes: base * scalars[0] + base * scalars[1] + ... + base * scalars[n-1]
+    fn fixed_base_msm(base: &G, scalars: &[G::Scalar]) -> G {
+        // Default implementation: sum the scalars first, then scale once
+        let sum_scalar = scalars.iter().fold(G::Scalar::zero(), |acc, s| acc.add(s));
+        base.scale(&sum_scalar)
+    }
+
+    /// Fixed-base vectorized scalar multiplication where the same base is scaled by each scalar individually
+    /// Computes: [base * scalars[0], base * scalars[1], ..., base * scalars[n-1]]
+    fn fixed_base_vector_msm(base: &G, scalars: &[G::Scalar]) -> Vec<G> {
+        // Default implementation: scale each scalar individually
+        scalars.iter().map(|scalar| base.scale(scalar)).collect()
+    }
+
+    /// Fixed-scalar variable-base vectorized multiplication with add: vs[i] = vs[i] + scalar * bases[i]
+    /// Modifies vs in place by adding the scaled bases
+    /// This is optimized for cases like reduce_fold where we compute v_l = alpha * v_l + v_r
+    fn fixed_scalar_variable_with_add(bases: &[G], vs: &mut [G], scalar: &G::Scalar) {
+        assert_eq!(bases.len(), vs.len(), "bases and vs must have same length");
+        // Default implementation: scale each base and add to vs
+        for (base, v) in bases.iter().zip(vs.iter_mut()) {
+            *v = v.add(&base.scale(scalar));
+        }
+    }
+
+    /// Fixed-scalar vectorized multiplication with add: vs[i] = scalar * vs[i] + addends[i]
+    /// Modifies vs in place by scaling each element and adding the corresponding addend
+    /// This is optimized for cases like reduce_fold where we compute v_l = alpha * v_l + v_r
+    fn fixed_scalar_scale_with_add(vs: &mut [G], addends: &[G], scalar: &G::Scalar) {
+        assert_eq!(vs.len(), addends.len(), "vs and addends must have same length");
+        // Default implementation: scale each vs element and add the corresponding addend
+        for (v, addend) in vs.iter_mut().zip(addends.iter()) {
+            *v = v.scale(scalar).add(addend);
+        }
+    }
 }

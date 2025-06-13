@@ -19,6 +19,7 @@ mod error;
 mod primitives;
 
 pub mod curve;
+pub mod profiler;
 pub mod vmv;
 pub use core::*;
 pub use primitives::*;
