@@ -69,36 +69,62 @@ pub trait Polynomial<F: Field, G1: Group<Scalar = F>> {
     /// # Returns
     /// Result vector v where v[j] = sum_i L[i] * M[i,j]
     #[tracing::instrument(skip_all)]
-    fn vector_matrix_product(&self, left_vec: &[F], sigma: usize, nu: usize) -> Vec<F> {
-        let mut v = vec![F::zero(); 1 << sigma]; // Result: v = L^T × M
-        let cols_per_row = 1 << sigma;
-        let len = self.len();
-
-        // Process each row of matrix M
-        for row_idx in 0..(1 << nu) {
-            if row_idx >= left_vec.len() {
-                break;
+    fn vector_matrix_product(&self, left_vec: &[F], sigma: usize, nu: usize) -> Vec<F> 
+    where
+        Self: Sync,
+    {
+        use crate::profiler::profile;
+        use rayon::prelude::*;
+        
+        profile("vector_matrix_product", || {
+            let cols_per_row = 1 << sigma;
+            let len = self.len();
+            let num_rows = (1 << nu).min(left_vec.len());
+            
+            if num_rows == 0 {
+                return vec![F::zero(); cols_per_row];
             }
 
-            let l_weight = &left_vec[row_idx]; // Weight for this row
-            let row_start = row_idx * cols_per_row;
+            // Optimization 1: Early exit for zero weights
+            let effective_rows: Vec<(usize, &F)> = profile("vector_matrix_product::filter_nonzero", || {
+                (0..num_rows)
+                    .filter_map(|row_idx| {
+                        let weight = &left_vec[row_idx];
+                        if !weight.is_zero() {
+                            Some((row_idx, weight))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            });
 
-            // Add weighted row to result: v += l_weight * row
-            for col_idx in 0..cols_per_row {
-                if col_idx >= v.len() {
-                    break;
-                }
-
-                let coeff_idx = row_start + col_idx;
-                if coeff_idx < len {
-                    let coeff = self.get(coeff_idx);
-                    let product = l_weight.mul(&coeff);
-                    v[col_idx] = v[col_idx].add(&product);
-                }
+            if effective_rows.is_empty() {
+                return vec![F::zero(); cols_per_row];
             }
-        }
 
-        v
+            // Optimization 2: Parallel processing by columns for better cache locality
+            profile("vector_matrix_product::parallel_computation", || {
+                (0..cols_per_row)
+                    .into_par_iter()
+                    .map(|col_idx| {
+                        let mut col_sum = F::zero();
+                        
+                        // Process all contributing rows for this column
+                        for &(row_idx, l_weight) in &effective_rows {
+                            let coeff_idx = row_idx * cols_per_row + col_idx;
+                            if coeff_idx < len {
+                                let coeff = self.get(coeff_idx);
+                                let product = l_weight.mul(&coeff);
+                                col_sum = col_sum.add(&product);
+                            }
+                        }
+                        
+                        col_sum
+                    })
+                    .collect()
+            })
+        })
     }
 }
 

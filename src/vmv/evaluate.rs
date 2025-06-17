@@ -51,7 +51,7 @@ where
     if prover_state.v1.is_empty() || prover_state.s1.is_empty() {
         println!("v1 or s1 is empty in eval_vmv_re_prove");
     }
-    if prover_state.nu > 0 && prover_setup.g1_vec.len() < (1 << prover_state.nu) {
+    if prover_state.nu > 0 && prover_setup.g1_vec().len() < (1 << prover_state.nu) {
         println!("prover_setup.g1_vec doesn't have enough elements for nu");
     }
 
@@ -62,14 +62,14 @@ where
         M1::msm(&prover_state.v1, &v_vec)
     });
     let c_val = profile("eval_vmv_re_prove::pair_c_val", || {
-        E::pair(&t_vec_v_inner_product, &prover_setup.g_fin)
+        E::pair(&t_vec_v_inner_product, prover_setup.g_fin())
     });
 
     // D₂ = e(⟨Γ₁[nu], ~v⟩, Γ₂,fin)
     // Protocol: D₂ = e(⟨Γ₁,~v⟩, Γ₂,fin) + rD₂·HT (randomness omitted)
     let g1_bases_at_nu =
-        if prover_state.nu > 0 && prover_setup.g1_vec.len() >= (1 << prover_state.nu) {
-            &prover_setup.g1_vec[..1 << prover_state.nu]
+        if prover_state.nu > 0 && prover_setup.g1_vec().len() >= (1 << prover_state.nu) {
+            &prover_setup.g1_vec()[..1 << prover_state.nu]
         } else {
             &[][..]
         };
@@ -82,7 +82,7 @@ where
         }
     });
     let d2_val = profile("eval_vmv_re_prove::pair_d2_val", || {
-        E::pair(&gamma1_v_inner_product, &prover_setup.g_fin)
+        E::pair(&gamma1_v_inner_product, prover_setup.g_fin())
     });
 
     // E₁ = ⟨T~₀, ~L⟩
@@ -106,7 +106,7 @@ where
     // v₂ = ~v · Γ₂,fin (scalar multiplication in G2)
     let updated_v2 = profile("eval_vmv_re_prove::g2_scaling", || {
         // Use fixed-base vectorized MSM since we're scaling the same base (g_fin) by each scalar
-        M2::fixed_base_vector_msm(&prover_setup.g_fin, &v_vec)
+        M2::fixed_base_vector_msm(prover_setup.g_fin(), &v_vec)
     });
 
     prover_state.v2 = updated_v2;
@@ -120,7 +120,7 @@ pub fn create_evaluation_proof<
     T: Transcript<Scalar = <E::G1 as Group>::Scalar>,
     M1: MultiScalarMul<E::G1>,
     M2: MultiScalarMul<E::G2>,
-    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized,
+    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized + Sync,
 >(
     initial_transcript: T, // DoryProofBuilder takes ownership of the transcript
     polynomial: &P,

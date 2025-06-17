@@ -70,15 +70,15 @@ fn test_inner_product_prove_verify() {
     // Create the initial values for D1 and D2
     println!("Computing D1 and D2...");
     let d_start = Instant::now();
-    let d_1 = ArkBn254Pairing::multi_pair(&v1, &prover_setup.g2_vec[..1 << log_n]);
-    let d_2 = ArkBn254Pairing::multi_pair(&prover_setup.g1_vec[..1 << log_n], &v2);
+    let d_1 = ArkBn254Pairing::multi_pair(&v1, &prover_setup.g2_vec()[..1 << log_n]);
+    let d_2 = ArkBn254Pairing::multi_pair(&prover_setup.g1_vec()[..1 << log_n], &v2);
     println!("D1 and D2 computed in: {:?}", d_start.elapsed());
 
     // Create the initial values for E1 and E2
     println!("Computing E1 and E2...");
     let e_start = Instant::now();
-    let e_1 = OptimizedMsmG1::msm(&prover_setup.g1_vec[..1 << log_n], &s2);
-    let e_2 = OptimizedMsmG2::msm(&prover_setup.g2_vec[..1 << log_n], &s1);
+    let e_1 = OptimizedMsmG1::msm(&prover_setup.g1_vec()[..1 << log_n], &s2);
+    let e_2 = OptimizedMsmG2::msm(&prover_setup.g2_vec()[..1 << log_n], &s1);
     println!("E1 and E2 computed in: {:?}", e_start.elapsed());
 
     // Create verifier state
@@ -172,12 +172,12 @@ fn test_inner_product_verify_should_fail() {
     let c = ArkBn254Pairing::multi_pair(&v1, &v2);
 
     // Create the initial values for D1 and D2
-    let d_1 = ArkBn254Pairing::multi_pair(&v1, &prover_setup.g2_vec[..1 << log_n]);
-    let d_2 = ArkBn254Pairing::multi_pair(&prover_setup.g1_vec[..1 << log_n], &v2);
+    let d_1 = ArkBn254Pairing::multi_pair(&v1, &prover_setup.g2_vec()[..1 << log_n]);
+    let d_2 = ArkBn254Pairing::multi_pair(&prover_setup.g1_vec()[..1 << log_n], &v2);
 
     // Create the initial values for E1 and E2
-    let e_1 = OptimizedMsmG1::msm(&prover_setup.g1_vec[..1 << log_n], &s2);
-    let e_2 = OptimizedMsmG2::msm(&prover_setup.g2_vec[..1 << log_n], &s1);
+    let e_1 = OptimizedMsmG1::msm(&prover_setup.g1_vec()[..1 << log_n], &s2);
+    let e_2 = OptimizedMsmG2::msm(&prover_setup.g2_vec()[..1 << log_n], &s1);
 
     // Create verifier state
     let verifier_state = DoryVerifierState::new_with_s(c, d_1, d_2, e_1, e_2, s1, s2, log_n);

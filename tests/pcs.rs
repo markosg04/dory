@@ -30,10 +30,19 @@ fn test_pcs_api_workflow() {
     // Setup with preloaded SRS file
     let setup_start = Instant::now();
     let srs_path = "./k_12.srs";
-    let (prover_setup, verifier_setup) =
+    let (mut prover_setup, verifier_setup) =
         setup_with_srs_file::<ArkBn254Pairing, _>(&mut rng, num_variables, Some(srs_path));
+
+    // Initialize cache for performance optimization
+    println!("Initializing generator cache...");
+    prover_setup.init_cache();
+    println!(
+        "Cache initialization complete. Has cache: {}",
+        prover_setup.has_cache()
+    );
+
     let setup_time = setup_start.elapsed();
-    println!("Setup time: {:?}", setup_time);
+    println!("Setup time (including cache): {:?}", setup_time);
 
     // Random multilinear polynomial coefficients
     let coeffs: Vec<Fr> = (0..num_coeffs).map(|_| Fr::rand(&mut rng)).collect();

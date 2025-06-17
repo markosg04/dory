@@ -28,7 +28,7 @@ pub fn compute_polynomial_commitment<
 
     // TODO(moodlezoup): handle offset
     let row_len = num_columns;
-    let row_commitments = poly.commit_rows::<M1>(&prover_setup.g1_vec[..row_len], row_len);
+    let row_commitments = poly.commit_rows::<M1>(&prover_setup.g1_vec()[..row_len], row_len);
 
     // let (first_row_coeffs, remaining_coeffs) = coeffs.split_at(first_row_len);
     // let remaining_row_count = (remaining_coeffs.len() + num_columns - 1) / num_columns;
@@ -55,7 +55,7 @@ pub fn compute_polynomial_commitment<
 
     // --- TIER 2: Multi-pairing to combine row commitments ---
 
-    let g2_elements = &prover_setup.g2_vec[rows_offset..rows_offset + row_commitments.len()];
+    let g2_elements = &prover_setup.g2_vec()[rows_offset..rows_offset + row_commitments.len()];
     E::multi_pair(&row_commitments, g2_elements) // Final commitment in GT
 }
 

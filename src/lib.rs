@@ -170,7 +170,7 @@ pub fn commit<E, M1, P>(
 where
     E: Pairing,
     M1: MultiScalarMul<E::G1>,
-    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized,
+    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized + Sync,
     E::G1: Group,
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
@@ -205,7 +205,7 @@ pub fn evaluate<
     T: Transcript<Scalar = <E::G1 as Group>::Scalar>,
     M1: MultiScalarMul<E::G1>,
     M2: MultiScalarMul<E::G2>,
-    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized,
+    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized + Sync,
 >(
     polynomial: &P,
     point: &[<E::G1 as Group>::Scalar],

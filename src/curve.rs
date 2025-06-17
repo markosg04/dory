@@ -4,7 +4,8 @@ use crate::poly::Polynomial;
 use ark_bn254::{g1, g2, Bn254, Fq12, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::AdditiveGroup;
 use ark_ec::{
-    pairing::Pairing as ArkPairing,
+    bn::{G1Prepared as BnG1Prepared, G2Prepared as BnG2Prepared},
+    pairing::{MillerLoopOutput, Pairing as ArkPairing},
     scalar_mul::{glv::GLVConfig, wnaf::WnafContext},
     AffineRepr, CurveGroup,
 };
@@ -98,7 +99,7 @@ impl Group for G1Affine {
 
 /// G1Affine and G2Affine are the same up to alias from arkworks.
 /// Hence, we have to use newType idiom here to avoid compiler conflicts
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct G2AffineWrapper(G2Affine);
 
 // Implement operator traits for G2AffineWrapper
@@ -278,22 +279,355 @@ impl Pairing for ArkBn254Pairing {
     }
 
     fn multi_pair(ps: &[Self::G1], qs: &[Self::G2]) -> Self::GT {
-        assert_eq!(
-            ps.len(),
-            qs.len(),
-            "multi_pair requires equal length vectors"
-        );
+        // Convert to the cached version format for consistency
+        Self::multi_pair_cached(Some(ps), None, None, Some(qs), None, None)
+    }
 
-        if ps.is_empty() {
-            return Self::GT::identity();
+    fn multi_pair_cached(
+        g1_points: Option<&[Self::G1]>,
+        g1_count: Option<usize>,
+        g1_cache: Option<&G1Cache>,
+        g2_points: Option<&[Self::G2]>,
+        g2_count: Option<usize>,
+        g2_cache: Option<&G2Cache>,
+    ) -> Self::GT {
+        use crate::profiler::profile;
+        
+        profile("multi_pair_cached", || {
+            match (g1_points, g1_count, g1_cache, g2_points, g2_count, g2_cache) {
+                // Case 1: Both G1 and G2 use cached prepared values (fully optimized)
+                (None, Some(g1_c), Some(g1_cache), None, Some(g2_c), Some(g2_cache)) => {
+                    profile("multi_pair_cached::both_cached", || {
+                        assert_eq!(g1_c, g2_c, "G1 and G2 counts must be equal");
+                        if g1_c == 0 {
+                            return Fq12::one();
+                        }
+
+                        // Extract prepared values by cloning - this is still faster than re-preparing from affine
+                        let g1_prepared = profile("multi_pair_cached::clone_g1_prepared", || {
+                            (0..g1_c)
+                                .map(|i| g1_cache.get_prepared(i).expect("Index out of bounds in G1 cache").clone())
+                                .collect::<Vec<_>>()
+                        });
+                        
+                        let g2_prepared = profile("multi_pair_cached::clone_g2_prepared", || {
+                            (0..g2_c)
+                                .map(|i| g2_cache.get_prepared(i).expect("Index out of bounds in G2 cache").clone())
+                                .collect::<Vec<_>>()
+                        });
+
+                        let ml_result = profile("multi_pair_cached::miller_loop", || {
+                            Bn254::multi_miller_loop(g1_prepared, g2_prepared).0
+                        });
+                        
+                        let pairing_result = profile("multi_pair_cached::final_exponentiation", || {
+                            Bn254::final_exponentiation(MillerLoopOutput(ml_result))
+                                .expect("Final exponentiation should not fail")
+                        });
+
+                        pairing_result.0
+                    })
+                },
+                
+                // Case 2: G1 cached, G2 fresh points (partial optimization)
+                (None, Some(g1_c), Some(g1_cache), Some(g2_points), _, _) => {
+                    profile("multi_pair_cached::g1_cached_g2_fresh", || {
+                        assert_eq!(g1_c, g2_points.len(), "G1 count must equal G2 points length");
+                        if g1_c == 0 {
+                            return Fq12::one();
+                        }
+
+                        // G1 from cache (clone), G2 fresh preparation
+                        let g1_prepared = profile("multi_pair_cached::clone_g1_prepared_partial", || {
+                            (0..g1_c)
+                                .map(|i| g1_cache.get_prepared(i).expect("Index out of bounds in G1 cache").clone())
+                                .collect::<Vec<_>>()
+                        });
+                        
+                        let g2_prepared = profile("multi_pair_cached::prepare_g2_fresh_partial", || {
+                            g2_points.par_iter().map(|q| BnG2Prepared::from(q.0)).collect::<Vec<_>>()
+                        });
+
+                        let ml_result = profile("multi_pair_cached::miller_loop_partial", || {
+                            Bn254::multi_miller_loop(g1_prepared, g2_prepared).0
+                        });
+                        
+                        let pairing_result = profile("multi_pair_cached::final_exponentiation_partial", || {
+                            Bn254::final_exponentiation(MillerLoopOutput(ml_result))
+                                .expect("Final exponentiation should not fail")
+                        });
+
+                        pairing_result.0
+                    })
+                },
+                
+                // Case 3: G1 fresh points, G2 cached (partial optimization)
+                (Some(g1_points), _, _, None, Some(g2_c), Some(g2_cache)) => {
+                    profile("multi_pair_cached::g1_fresh_g2_cached", || {
+                        assert_eq!(g1_points.len(), g2_c, "G1 points length must equal G2 count");
+                        if g2_c == 0 {
+                            return Fq12::one();
+                        }
+
+                        // G1 fresh preparation, G2 from cache (clone)
+                        let g1_prepared = profile("multi_pair_cached::prepare_g1_fresh_partial", || {
+                            g1_points.par_iter().map(|&g| BnG1Prepared::from(g)).collect::<Vec<_>>()
+                        });
+                        
+                        let g2_prepared = profile("multi_pair_cached::clone_g2_prepared_partial", || {
+                            (0..g2_c)
+                                .map(|i| g2_cache.get_prepared(i).expect("Index out of bounds in G2 cache").clone())
+                                .collect::<Vec<_>>()
+                        });
+
+                        let ml_result = profile("multi_pair_cached::miller_loop_partial", || {
+                            Bn254::multi_miller_loop(g1_prepared, g2_prepared).0
+                        });
+                        
+                        let pairing_result = profile("multi_pair_cached::final_exponentiation_partial", || {
+                            Bn254::final_exponentiation(MillerLoopOutput(ml_result))
+                                .expect("Final exponentiation should not fail")
+                        });
+
+                        pairing_result.0
+                    })
+                },
+                
+                // Case 4: Both fresh points (no caching benefit)
+                (Some(g1_points), _, _, Some(g2_points), _, _) => {
+                    profile("multi_pair_cached::both_fresh", || {
+                        assert_eq!(g1_points.len(), g2_points.len(), "G1 and G2 vectors must have equal length");
+                        if g1_points.is_empty() {
+                            return Fq12::one();
+                        }
+
+                        let left = profile("multi_pair_cached::prepare_g1_fresh", || {
+                            g1_points.par_iter().map(|&g| BnG1Prepared::from(g)).collect::<Vec<_>>()
+                        });
+                        
+                        let right = profile("multi_pair_cached::prepare_g2_fresh", || {
+                            g2_points.par_iter().map(|q| BnG2Prepared::from(q.0)).collect::<Vec<_>>()
+                        });
+
+                        let ml_result = profile("multi_pair_cached::miller_loop_fresh", || {
+                            Bn254::multi_miller_loop(left, right).0
+                        });
+
+                        let pairing_result = profile("multi_pair_cached::final_exponentiation_fresh", || {
+                            Bn254::final_exponentiation(MillerLoopOutput(ml_result))
+                                .expect("Final exponentiation should not fail")
+                        });
+
+                        pairing_result.0
+                    })
+                },
+                
+                _ => panic!("Invalid combination of parameters provided to multi_pair_cached")
+            }
+        })
+    }
+}
+
+
+/* --------- Cache structures for optimized MSM operations ----------- */
+
+/// Cache entry for a single G1 point containing precomputed values
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+pub struct G1CacheEntry {
+    /// Original affine point
+    pub affine: G1Affine,
+    /// Projective version for faster group operations
+    pub projective: G1Projective,
+    /// Prepared version for pairing operations
+    pub prepared: BnG1Prepared<ark_bn254::Config>,
+    /// Precomputed small multiples [1g, 2g, 3g, ..., 8g]
+    pub multiples: [G1Projective; 2],
+}
+
+/// Cache for multiple G1 points
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+pub struct G1Cache {
+    /// Cached entries indexed by position
+    pub entries: Vec<G1CacheEntry>,
+}
+
+impl G1Cache {
+    /// Initialize cache from a vector of G1 affine points
+    pub fn new(generators: &[G1Affine]) -> Self {
+        let entries: Vec<G1CacheEntry> = generators
+            .par_iter()
+            .map(|&g| {
+                let projective = g.into_group();
+                let prepared = BnG1Prepared::from(g);
+
+                // Compute small multiples
+                let mut multiples = [G1Projective::zero(); 2];
+                let mut acc = projective;
+                for i in 0..2 {
+                    multiples[i] = acc;
+                    acc = acc + projective;
+                }
+
+                G1CacheEntry {
+                    affine: g,
+                    projective,
+                    prepared,
+                    multiples,
+                }
+            })
+            .collect();
+
+        Self { entries }
+    }
+
+    /// Save cache to file
+    pub fn save_to_file(&self, path: &str) -> Result<(), SerializationError> {
+        let mut file = std::fs::File::create(path).map_err(|e| SerializationError::IoError(e))?;
+        self.serialize_compressed(&mut file)?;
+        file.flush().map_err(|e| SerializationError::IoError(e))?;
+        Ok(())
+    }
+
+    /// Load cache from file
+    pub fn load_from_file(path: &str) -> Result<Self, SerializationError> {
+        let file = std::fs::File::open(path).map_err(|e| SerializationError::IoError(e))?;
+        Self::deserialize_compressed(file)
+    }
+
+    /// Get a cache entry by index
+    pub fn get_entry(&self, index: usize) -> Option<&G1CacheEntry> {
+        self.entries.get(index)
+    }
+
+    /// Get the projective version of a point by index
+    pub fn get_projective(&self, index: usize) -> Option<&G1Projective> {
+        self.entries.get(index).map(|e| &e.projective)
+    }
+
+    /// Get the prepared version of a point by index
+    pub fn get_prepared(&self, index: usize) -> Option<&BnG1Prepared<ark_bn254::Config>> {
+        self.entries.get(index).map(|e| &e.prepared)
+    }
+
+    /// Get a precomputed multiple (1-2) of a point by index
+    pub fn get_multiple(&self, index: usize, multiple: usize) -> Option<&G1Projective> {
+        if multiple == 0 || multiple > 2 {
+            return None;
         }
+        self.entries.get(index).map(|e| &e.multiples[multiple - 1])
+    }
 
-        // Extract G1 and G2 elements separately
-        let g1_elements: Vec<G1Affine> = ps.iter().copied().collect();
-        let g2_elements: Vec<G2Affine> = qs.iter().map(|q| q.0).collect();
+    /// Number of cached entries
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
 
-        // Use the optimized multi-pairing from arkworks (takes two separate iterators)
-        Bn254::multi_pairing(g1_elements, g2_elements).0
+    /// Check if cache is empty
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+/// Cache entry for a single G2 point containing precomputed values
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+pub struct G2CacheEntry {
+    /// Original affine point
+    pub affine: G2Affine,
+    /// Projective version for faster group operations
+    pub projective: G2Projective,
+    /// Prepared version for pairing operations
+    pub prepared: BnG2Prepared<ark_bn254::Config>,
+    /// Precomputed small multiples [1g, 2g, 3g, ..., 8g]
+    pub multiples: [G2Projective; 2],
+}
+
+/// Cache for multiple G2 points
+#[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
+pub struct G2Cache {
+    /// Cached entries indexed by position
+    pub entries: Vec<G2CacheEntry>,
+}
+
+impl G2Cache {
+    /// Initialize cache from a vector of G2 affine points
+    pub fn new(generators: &[G2Affine]) -> Self {
+        let entries: Vec<G2CacheEntry> = generators
+            .par_iter()
+            .map(|&g| {
+                let projective = g.into_group();
+                let prepared = BnG2Prepared::from(g);
+
+                // Compute small multiples
+                let mut multiples = [G2Projective::zero(); 2];
+                let mut acc = projective;
+                for i in 0..2 {
+                    multiples[i] = acc;
+                    acc = acc + projective;
+                }
+
+                G2CacheEntry {
+                    affine: g,
+                    projective,
+                    prepared,
+                    multiples,
+                }
+            })
+            .collect();
+
+        Self { entries }
+    }
+
+    /// Initialize cache from a vector of G2AffineWrapper points
+    pub fn new_from_wrappers(generators: &[G2AffineWrapper]) -> Self {
+        let native_generators: Vec<G2Affine> = generators.iter().map(|w| w.0).collect();
+        Self::new(&native_generators)
+    }
+
+    /// Save cache to file
+    pub fn save_to_file(&self, path: &str) -> Result<(), SerializationError> {
+        let mut file = std::fs::File::create(path).map_err(|e| SerializationError::IoError(e))?;
+        self.serialize_compressed(&mut file)?;
+        file.flush().map_err(|e| SerializationError::IoError(e))?;
+        Ok(())
+    }
+
+    /// Load cache from file
+    pub fn load_from_file(path: &str) -> Result<Self, SerializationError> {
+        let file = std::fs::File::open(path).map_err(|e| SerializationError::IoError(e))?;
+        Self::deserialize_compressed(file)
+    }
+
+    /// Get a cache entry by index
+    pub fn get_entry(&self, index: usize) -> Option<&G2CacheEntry> {
+        self.entries.get(index)
+    }
+
+    /// Get the projective version of a point by index
+    pub fn get_projective(&self, index: usize) -> Option<&G2Projective> {
+        self.entries.get(index).map(|e| &e.projective)
+    }
+
+    /// Get the prepared version of a point by index
+    pub fn get_prepared(&self, index: usize) -> Option<&BnG2Prepared<ark_bn254::Config>> {
+        self.entries.get(index).map(|e| &e.prepared)
+    }
+
+    /// Get a precomputed multiple (1-2) of a point by index
+    pub fn get_multiple(&self, index: usize, multiple: usize) -> Option<&G2Projective> {
+        if multiple == 0 || multiple > 2 {
+            return None;
+        }
+        self.entries.get(index).map(|e| &e.multiples[multiple - 1])
+    }
+
+    /// Number of cached entries
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Check if cache is empty
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
 
@@ -665,7 +999,11 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
             });
     }
 
-    fn fixed_scalar_scale_with_add(vs: &mut [G2AffineWrapper], addends: &[G2AffineWrapper], scalar: &Fr) {
+    fn fixed_scalar_scale_with_add(
+        vs: &mut [G2AffineWrapper],
+        addends: &[G2AffineWrapper],
+        scalar: &Fr,
+    ) {
         let n = vs.len();
         assert_eq!(n, addends.len(), "vs and addends must have same length");
         if n == 0 {

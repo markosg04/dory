@@ -63,6 +63,22 @@ pub trait Pairing: Sized + Send + Sync {
                 acc.add(&Self::pair(p, q))
             })
     }
+
+    /// Multi-pairing with flexible caching support.
+    ///
+    /// For each side, you can either provide:
+    /// - `points` + `None` cache: compute prepared values at runtime
+    /// - `count` + `Some(cache)`: use first `count` cached prepared values
+    ///
+    /// This allows mixing cached generators (from setup) with runtime-computed points.
+    fn multi_pair_cached(
+        g1_points: Option<&[Self::G1]>,
+        g1_count: Option<usize>,
+        g1_cache: Option<&crate::curve::G1Cache>,
+        g2_points: Option<&[Self::G2]>,
+        g2_count: Option<usize>,
+        g2_cache: Option<&crate::curve::G2Cache>,
+    ) -> Self::GT;
 }
 
 pub trait MultiScalarMul<G: Group> {
@@ -98,7 +114,11 @@ pub trait MultiScalarMul<G: Group> {
     /// Modifies vs in place by scaling each element and adding the corresponding addend
     /// This is optimized for cases like reduce_fold where we compute v_l = alpha * v_l + v_r
     fn fixed_scalar_scale_with_add(vs: &mut [G], addends: &[G], scalar: &G::Scalar) {
-        assert_eq!(vs.len(), addends.len(), "vs and addends must have same length");
+        assert_eq!(
+            vs.len(),
+            addends.len(),
+            "vs and addends must have same length"
+        );
         // Default implementation: scale each vs element and add the corresponding addend
         for (v, addend) in vs.iter_mut().zip(addends.iter()) {
             *v = v.scale(scalar).add(addend);

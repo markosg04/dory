@@ -42,7 +42,7 @@ where
         if self.nu == 0 {
             panic!("Not enough rounds left in prover state");
         }
-        
+
         // n/2
         let n2 = profile("first_reduce::compute_n2", || 1usize << (self.nu - 1));
 
@@ -55,28 +55,72 @@ where
         /* ---------- COMPUTE D ---------- */
         let (g1_prime, g2_prime) = profile("first_reduce::get_gamma_vectors", || {
             // Collapsed Γ-vectors of length n/2 (Γ₁′, Γ₂′)
-            let g2_prime = &setup.g2_vec[..1 << (self.nu - 1)];
-            let g1_prime = &setup.g1_vec[..1 << (self.nu - 1)];
+            let g2_prime = &setup.g2_vec()[..1 << (self.nu - 1)];
+            let g1_prime = &setup.g1_vec()[..1 << (self.nu - 1)];
             (g1_prime, g2_prime)
         });
 
-        let (d1_left, d1_right, d2_left, d2_right) = profile("first_reduce::compute_d_terms", || {
-            // D₁L,R = ⟨v₁L/R , Γ₂′⟩
-            let d1_left = E::multi_pair(v1_l, g2_prime);
-            let d1_right = E::multi_pair(v1_r, g2_prime);
+        let (d1_left, d1_right, d2_left, d2_right) =
+            profile("first_reduce::compute_d_terms", || {
+                // Use cached multi-pairing if available, otherwise fall back to regular multi-pairing
+                if setup.g1_cache.is_some() && setup.g2_cache.is_some() {
+                    println!("USING CACHE!");
+                    // Using optimized cached multi-pairing
+                    let g2_prime_count = 1 << (self.nu - 1);
+                    let g1_prime_count = 1 << (self.nu - 1);
 
-            // D₂L,R = ⟨Γ₁′ , v₂L/R⟩
-            let d2_left = E::multi_pair(g1_prime, v2_l);
-            let d2_right = E::multi_pair(g1_prime, v2_r);
-            (d1_left, d1_right, d2_left, d2_right)
-        });
+                    // D₁L,R = ⟨v₁L/R , Γ₂′⟩ - v1 is runtime, g2_prime uses cache
+                    let d1_left = E::multi_pair_cached(
+                        Some(v1_l),
+                        None,
+                        None, // G1: use runtime points v1_l
+                        None,
+                        Some(g2_prime_count),
+                        setup.g2_cache.as_ref(), // G2: use first 2^(nu-1) cached elements
+                    );
+                    let d1_right = E::multi_pair_cached(
+                        Some(v1_r),
+                        None,
+                        None, // G1: use runtime points v1_r
+                        None,
+                        Some(g2_prime_count),
+                        setup.g2_cache.as_ref(), // G2: use first 2^(nu-1) cached elements
+                    );
+
+                    // D₂L,R = ⟨Γ₁′ , v₂L/R⟩ - g1_prime uses cache, v2 is runtime
+                    let d2_left = E::multi_pair_cached(
+                        None,
+                        Some(g1_prime_count),
+                        setup.g1_cache.as_ref(), // G1: use first 2^(nu-1) cached elements
+                        Some(v2_l),
+                        None,
+                        None, // G2: use runtime points v2_l
+                    );
+                    let d2_right = E::multi_pair_cached(
+                        None,
+                        Some(g1_prime_count),
+                        setup.g1_cache.as_ref(), // G1: use first 2^(nu-1) cached elements
+                        Some(v2_r),
+                        None,
+                        None, // G2: use runtime points v2_r
+                    );
+                    (d1_left, d1_right, d2_left, d2_right)
+                } else {
+                    // Fallback to regular multi-pairing when cache is not available
+                    let d1_left = E::multi_pair(v1_l, g2_prime);
+                    let d1_right = E::multi_pair(v1_r, g2_prime);
+                    let d2_left = E::multi_pair(g1_prime, v2_l);
+                    let d2_right = E::multi_pair(g1_prime, v2_r);
+                    (d1_left, d1_right, d2_left, d2_right)
+                }
+            });
 
         /* ---------- COMPUTE E (for extended protocol) ---------- */
         let (e1_beta, e2_beta) = profile("first_reduce::compute_e_terms", || {
             // E₁β = ⟨Γ₁ , s₂⟩
-            let e1_beta = M1::msm(&setup.g1_vec[..1 << self.nu], &self.s2);
+            let e1_beta = M1::msm(&setup.g1_vec()[..1 << self.nu], &self.s2);
             // E₂β = ⟨Γ₂ , s₁⟩
-            let e2_beta = M2::msm(&setup.g2_vec[..1 << self.nu], &self.s1);
+            let e2_beta = M2::msm(&setup.g2_vec()[..1 << self.nu], &self.s1);
             (e1_beta, e2_beta)
         });
 
@@ -107,10 +151,10 @@ where
         let beta_inv = chall.beta_inverse;
 
         let g1_prime = profile("reduce_combine::get_g1_slice", || {
-            &setup.g1_vec[..1 << self.nu]
+            &setup.g1_vec()[..1 << self.nu]
         });
         let g2_prime = profile("reduce_combine::get_g2_slice", || {
-            &setup.g2_vec[..1 << self.nu]
+            &setup.g2_vec()[..1 << self.nu]
         });
 
         // Prover work P(*):
@@ -128,12 +172,12 @@ where
         // ṽ₂ ← ṽ₂ + β⁻¹·Γ₂
         profile("reduce_combine::v2_combine", || {
             M2::fixed_scalar_variable_with_add(g2_prime, &mut self.v2, &beta_inv);
-        //     self.v2
-        //     .par_iter_mut()
-        //     .zip(g2_prime.par_iter())
-        //     .for_each(|(v2_i, g2_i)| {
-        //         *v2_i = v2_i.add(&g2_i.scale(&beta_inv));
-        //     });
+            //     self.v2
+            //     .par_iter_mut()
+            //     .zip(g2_prime.par_iter())
+            //     .for_each(|(v2_i, g2_i)| {
+            //         *v2_i = v2_i.add(&g2_i.scale(&beta_inv));
+            //     });
         });
 
         self
@@ -153,13 +197,14 @@ where
 
         let n2 = profile("second_reduce::compute_n2", || 1usize << (self.nu - 1));
 
-        let (v1_l, v1_r, v2_l, v2_r, s1_l, s1_r, s2_l, s2_r) = profile("second_reduce::split_vectors", || {
-            let (v1_l, v1_r) = self.v1.split_at(n2);
-            let (v2_l, v2_r) = self.v2.split_at(n2);
-            let (s1_l, s1_r) = self.s1.split_at(n2);
-            let (s2_l, s2_r) = self.s2.split_at(n2);
-            (v1_l, v1_r, v2_l, v2_r, s1_l, s1_r, s2_l, s2_r)
-        });
+        let (v1_l, v1_r, v2_l, v2_r, s1_l, s1_r, s2_l, s2_r) =
+            profile("second_reduce::split_vectors", || {
+                let (v1_l, v1_r) = self.v1.split_at(n2);
+                let (v2_l, v2_r) = self.v2.split_at(n2);
+                let (s1_l, s1_r) = self.s1.split_at(n2);
+                let (s2_l, s2_r) = self.s2.split_at(n2);
+                (v1_l, v1_r, v2_l, v2_r, s1_l, s1_r, s2_l, s2_r)
+            });
 
         // ---- C terms ----------------------------------------------------------
         let (c_plus, c_minus) = profile("second_reduce::compute_c_terms", || {
@@ -169,13 +214,14 @@ where
         });
 
         // ---- E terms (extended protocol) ---------------------------------------
-        let (e1_plus, e1_minus, e2_plus, e2_minus) = profile("second_reduce::compute_e_terms", || {
-            let e1_plus = M1::msm(v1_l, s2_r); // ⟨v₁L, s₂R⟩
-            let e1_minus = M1::msm(v1_r, s2_l); // ⟨v₁R, s₂L⟩
-            let e2_plus = M2::msm(v2_r, s1_l); // ⟨v₂R, s₁L⟩
-            let e2_minus = M2::msm(v2_l, s1_r); // ⟨v₂L, s₁R⟩
-            (e1_plus, e1_minus, e2_plus, e2_minus)
-        });
+        let (e1_plus, e1_minus, e2_plus, e2_minus) =
+            profile("second_reduce::compute_e_terms", || {
+                let e1_plus = M1::msm(v1_l, s2_r); // ⟨v₁L, s₂R⟩
+                let e1_minus = M1::msm(v1_r, s2_l); // ⟨v₁R, s₂L⟩
+                let e2_plus = M2::msm(v2_r, s1_l); // ⟨v₂R, s₁L⟩
+                let e2_minus = M2::msm(v2_l, s1_r); // ⟨v₂L, s₁R⟩
+                (e1_plus, e1_minus, e2_plus, e2_minus)
+            });
 
         SecondReduceMessage {
             c_plus,
@@ -300,10 +346,10 @@ where
 
         let (e1, e2) = profile("scalar_product::compute_fold_scalars", || {
             let gamma_s1_product = gamma.mul(&self.s1[0]);
-            let e1 = self.v1[0].add(&setup.h1.scale(&gamma_s1_product));
+            let e1 = self.v1[0].add(&setup.h1().scale(&gamma_s1_product));
 
             let gamma_inv_s2_product = gamma_inv.mul(&self.s2[0]);
-            let e2 = self.v2[0].add(&setup.h2.scale(&gamma_inv_s2_product));
+            let e2 = self.v2[0].add(&setup.h2().scale(&gamma_inv_s2_product));
             (e1, e2)
         });
 

@@ -75,7 +75,7 @@ where
     E::G1: Group,
     <E::G1 as Group>::Scalar: Field + Clone,
 {
-    let bases = &prover_setup.g1_vec[..1 << nu];
+    let bases = &prover_setup.g1_vec()[..1 << nu];
     let row_len = 1 << sigma;
 
     let mut res = polynomial.commit_rows::<M1>(bases, row_len);
@@ -99,7 +99,7 @@ pub fn build_vmv_prover_state<E, P>(
 ) -> VMVProverState<E>
 where
     E: Pairing,
-    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized,
+    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized + Sync,
     E::G1: Group,
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {

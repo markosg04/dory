@@ -1,16 +1,16 @@
 //! Data structures and generation of the transparent setup for both prover and verifier
 use crate::arithmetic::*;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::rand::rngs::StdRng;
+use crate::curve::{G1Cache, G2Cache};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
 use ark_std::rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use rayon::prelude::*;
 use std::fs::File;
 use std::io::{Read, Write};
 
-/// Dory transparent setup for the prover
+/// Core data for Dory transparent setup (serializable)
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
-pub struct ProverSetup<E: Pairing> {
+pub struct ProverSetupCore<E: Pairing> {
     /// Γ₁  — column generators (|Γ₁| = n)
     pub g1_vec: Vec<E::G1>,
     /// Γ₂  — row generators    (|Γ₂| = n)
@@ -25,6 +25,52 @@ pub struct ProverSetup<E: Pairing> {
     pub g_fin: E::G2,
 }
 
+/// Dory transparent setup for the prover with optional caches
+#[derive(Clone)]
+pub struct ProverSetup<E: Pairing> {
+    /// Core setup data
+    pub core: ProverSetupCore<E>,
+    /// Optional cache for G1 generators (not serialized, can be regenerated)
+    pub g1_cache: Option<G1Cache>,
+    /// Optional cache for G2 generators (not serialized, can be regenerated)
+    pub g2_cache: Option<G2Cache>,
+}
+
+// Implement CanonicalSerialize and CanonicalDeserialize for ProverSetup by delegating to core
+impl<E: Pairing> CanonicalSerialize for ProverSetup<E> {
+    fn serialize_with_mode<W: Write>(
+        &self,
+        writer: W,
+        compress: ark_serialize::Compress,
+    ) -> Result<(), SerializationError> {
+        self.core.serialize_with_mode(writer, compress)
+    }
+    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
+        self.core.serialized_size(compress)
+    }
+}
+
+impl<E: Pairing> CanonicalDeserialize for ProverSetup<E> {
+    fn deserialize_with_mode<R: Read>(
+        reader: R,
+        compress: ark_serialize::Compress,
+        validate: ark_serialize::Validate,
+    ) -> Result<Self, SerializationError> {
+        let core = ProverSetupCore::deserialize_with_mode(reader, compress, validate)?;
+        Ok(Self {
+            core,
+            g1_cache: None,
+            g2_cache: None,
+        })
+    }
+}
+
+impl<E: Pairing> ark_serialize::Valid for ProverSetup<E> {
+    fn check(&self) -> Result<(), SerializationError> {
+        self.core.check()
+    }
+}
+
 /// Dory transparent setup for the verifier with precomputed values
 #[derive(Clone, Debug, CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifierSetup<E: Pairing> {
@@ -34,7 +80,7 @@ pub struct VerifierSetup<E: Pairing> {
     pub delta_1r: Vec<E::GT>,
     /// Δ₂L[k] = same as Δ₁L[k] -- see paper
     pub delta_2l: Vec<E::GT>,
-    /// Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k]
+    /// Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k)]
     pub delta_2r: Vec<E::GT>,
     /// χ[k] = e(Γ₁[..2^k], Γ₂[..2^k])
     pub chi: Vec<E::GT>,
@@ -95,18 +141,127 @@ impl<E: Pairing> ProverSetup<E> {
         let ht = E::pair(&h1, &h2);
 
         Self {
-            g1_vec,
-            g2_vec,
-            h1,
-            h2,
-            ht,
-            g_fin,
+            core: ProverSetupCore {
+                g1_vec,
+                g2_vec,
+                h1,
+                h2,
+                ht,
+                g_fin,
+            },
+            g1_cache: None,
+            g2_cache: None,
         }
     }
 
     /// Convert to verifier side
     pub fn to_verifier_setup(&self) -> VerifierSetup<E> {
         VerifierSetup::from_prover_setup(self)
+    }
+
+    /// Initialize caches from the generator vectors
+    /// This should be called after setup creation to enable cached operations
+    /// This method is only available when E::G1 = ark_bn254::G1Affine and E::G2 = ark_bn254::G2Affine
+    pub fn init_cache(&mut self)
+    where
+        E::G1: Into<ark_bn254::G1Affine> + Copy,
+        E::G2: Into<ark_bn254::G2Affine> + Copy,
+    {
+        println!(
+            "Initializing G1 cache from {} generators...",
+            self.core.g1_vec.len()
+        );
+        let g1_elements: Vec<ark_bn254::G1Affine> =
+            self.core.g1_vec.iter().map(|&g| g.into()).collect();
+        self.g1_cache = Some(G1Cache::new(&g1_elements));
+
+        println!(
+            "Initializing G2 cache from {} generators...",
+            self.core.g2_vec.len()
+        );
+        let g2_elements: Vec<ark_bn254::G2Affine> =
+            self.core.g2_vec.iter().map(|&g| g.into()).collect();
+        self.g2_cache = Some(G2Cache::new(&g2_elements));
+
+        println!("Cache initialization complete.");
+    }
+
+    /// Save caches to separate files
+    pub fn save_cache_to_files(
+        &self,
+        g1_cache_path: &str,
+        g2_cache_path: &str,
+    ) -> Result<(), SerializationError> {
+        if let Some(ref g1_cache) = self.g1_cache {
+            g1_cache.save_to_file(g1_cache_path)?;
+            println!("Saved G1 cache to {}", g1_cache_path);
+        }
+        if let Some(ref g2_cache) = self.g2_cache {
+            g2_cache.save_to_file(g2_cache_path)?;
+            println!("Saved G2 cache to {}", g2_cache_path);
+        }
+        Ok(())
+    }
+
+    /// Load caches from separate files
+    pub fn load_cache_from_files(
+        &mut self,
+        g1_cache_path: &str,
+        g2_cache_path: &str,
+    ) -> Result<(), SerializationError> {
+        match G1Cache::load_from_file(g1_cache_path) {
+            Ok(cache) => {
+                println!("Loaded G1 cache from {}", g1_cache_path);
+                self.g1_cache = Some(cache);
+            }
+            Err(e) => {
+                println!("Failed to load G1 cache from {}: {:?}", g1_cache_path, e);
+                return Err(e);
+            }
+        }
+
+        match G2Cache::load_from_file(g2_cache_path) {
+            Ok(cache) => {
+                println!("Loaded G2 cache from {}", g2_cache_path);
+                self.g2_cache = Some(cache);
+            }
+            Err(e) => {
+                println!("Failed to load G2 cache from {}: {:?}", g2_cache_path, e);
+                return Err(e);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Check if caches are initialized
+    pub fn has_cache(&self) -> bool {
+        self.g1_cache.is_some() && self.g2_cache.is_some()
+    }
+
+    // Convenient accessors for core fields
+    pub fn g1_vec(&self) -> &Vec<E::G1> {
+        &self.core.g1_vec
+    }
+
+    pub fn g2_vec(&self) -> &Vec<E::G2> {
+        &self.core.g2_vec
+    }
+
+    pub fn h1(&self) -> &E::G1 {
+        &self.core.h1
+    }
+
+    pub fn h2(&self) -> &E::G2 {
+        &self.core.h2
+    }
+
+    pub fn ht(&self) -> &E::GT {
+        &self.core.ht
+    }
+
+    pub fn g_fin(&self) -> &E::G2 {
+        &self.core.g_fin
     }
 
     /// Save the prover setup to disk (legacy method - saves only prover setup)
@@ -208,7 +363,7 @@ impl<E: Pairing> VerifierSetup<E> {
     /// Constructor from an existing prover setup
     pub fn from_prover_setup(prover_setup: &ProverSetup<E>) -> Self {
         // Since g1_vec has length n = 1 << (max_log_n / 2), we have max_log_n = 2 * log2(g1_vec.len())
-        let max_log_n = prover_setup.g1_vec.len().trailing_zeros() as usize;
+        let max_log_n = prover_setup.core.g1_vec.len().trailing_zeros() as usize;
 
         let mut delta_1l = Vec::with_capacity(max_log_n + 1);
         let mut delta_1r = Vec::with_capacity(max_log_n + 1);
@@ -221,15 +376,18 @@ impl<E: Pairing> VerifierSetup<E> {
                 delta_1l.push(E::GT::identity());
                 delta_1r.push(E::GT::identity());
                 delta_2r.push(E::GT::identity());
-                chi.push(E::pair(&prover_setup.g1_vec[0], &prover_setup.g2_vec[0]));
+                chi.push(E::pair(
+                    &prover_setup.core.g1_vec[0],
+                    &prover_setup.core.g2_vec[0],
+                ));
             } else {
                 let half_len = 1 << (k - 1);
                 let full_len = 1 << k;
 
-                let g1_first_half = &prover_setup.g1_vec[..half_len];
-                let g1_second_half = &prover_setup.g1_vec[half_len..full_len];
-                let g2_first_half = &prover_setup.g2_vec[..half_len];
-                let g2_second_half = &prover_setup.g2_vec[half_len..full_len];
+                let g1_first_half = &prover_setup.core.g1_vec[..half_len];
+                let g1_second_half = &prover_setup.core.g1_vec[half_len..full_len];
+                let g2_first_half = &prover_setup.core.g2_vec[..half_len];
+                let g2_second_half = &prover_setup.core.g2_vec[half_len..full_len];
 
                 // Δ₁L[k] = Δ₂L[k] = e(Γ₁[..2^(k-1)], Γ₂[..2^(k-1)])
                 delta_1l.push(chi[k - 1].clone());
@@ -251,13 +409,13 @@ impl<E: Pairing> VerifierSetup<E> {
             delta_2l: delta_1l, // Delta_2L is the same as Delta_1L
             delta_2r,
             chi,
-            g1_0: prover_setup.g1_vec[0].clone(),
-            g2_0: prover_setup.g2_vec[0].clone(),
-            h1: prover_setup.h1.clone(),
-            h2: prover_setup.h2.clone(),
-            ht: prover_setup.ht.clone(),
+            g1_0: prover_setup.core.g1_vec[0].clone(),
+            g2_0: prover_setup.core.g2_vec[0].clone(),
+            h1: prover_setup.core.h1.clone(),
+            h2: prover_setup.core.h2.clone(),
+            ht: prover_setup.core.ht.clone(),
             max_log_n,
-            g_fin: prover_setup.g_fin.clone(),
+            g_fin: prover_setup.core.g_fin.clone(),
         }
     }
 
