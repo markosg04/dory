@@ -308,27 +308,17 @@ impl Pairing for ArkBn254Pairing {
                             return Fq12::one();
                         }
 
-                        // Extract prepared values by cloning - this is still faster than re-preparing from affine
-                        let g1_prepared = profile("multi_pair_cached::clone_g1_prepared", || {
-                            (0..g1_c)
-                                .map(|i| {
-                                    g1_cache
-                                        .get_prepared(i)
-                                        .expect("Index out of bounds in G1 cache")
-                                        .clone()
-                                })
-                                .collect::<Vec<_>>()
+                        // Extract prepared values as iterators - avoids Vec allocation and cloning
+                        let g1_prepared = (0..g1_c).map(|i| {
+                            g1_cache
+                                .get_prepared(i)
+                                .expect("Index out of bounds in G1 cache")
                         });
 
-                        let g2_prepared = profile("multi_pair_cached::clone_g2_prepared", || {
-                            (0..g2_c)
-                                .map(|i| {
-                                    g2_cache
-                                        .get_prepared(i)
-                                        .expect("Index out of bounds in G2 cache")
-                                        .clone()
-                                })
-                                .collect::<Vec<_>>()
+                        let g2_prepared = (0..g2_c).map(|i| {
+                            g2_cache
+                                .get_prepared(i)
+                                .expect("Index out of bounds in G2 cache")
                         });
 
                         let ml_result = profile("multi_pair_cached::miller_loop", || {
@@ -357,18 +347,12 @@ impl Pairing for ArkBn254Pairing {
                             return Fq12::one();
                         }
 
-                        // G1 from cache (clone), G2 fresh preparation
-                        let g1_prepared =
-                            profile("multi_pair_cached::clone_g1_prepared_partial", || {
-                                (0..g1_c)
-                                    .map(|i| {
-                                        g1_cache
-                                            .get_prepared(i)
-                                            .expect("Index out of bounds in G1 cache")
-                                            .clone()
-                                    })
-                                    .collect::<Vec<_>>()
-                            });
+                        // G1 from cache as iterator, G2 fresh preparation
+                        let g1_prepared = (0..g1_c).map(|i| {
+                            g1_cache
+                                .get_prepared(i)
+                                .expect("Index out of bounds in G1 cache")
+                        });
 
                         let g2_prepared =
                             profile("multi_pair_cached::prepare_g2_fresh_partial", || {
@@ -404,7 +388,7 @@ impl Pairing for ArkBn254Pairing {
                             return Fq12::one();
                         }
 
-                        // G1 fresh preparation, G2 from cache (clone)
+                        // G1 fresh preparation, G2 from cache as iterator
                         let g1_prepared =
                             profile("multi_pair_cached::prepare_g1_fresh_partial", || {
                                 g1_points
@@ -413,17 +397,11 @@ impl Pairing for ArkBn254Pairing {
                                     .collect::<Vec<_>>()
                             });
 
-                        let g2_prepared =
-                            profile("multi_pair_cached::clone_g2_prepared_partial", || {
-                                (0..g2_c)
-                                    .map(|i| {
-                                        g2_cache
-                                            .get_prepared(i)
-                                            .expect("Index out of bounds in G2 cache")
-                                            .clone()
-                                    })
-                                    .collect::<Vec<_>>()
-                            });
+                        let g2_prepared = (0..g2_c).map(|i| {
+                            g2_cache
+                                .get_prepared(i)
+                                .expect("Index out of bounds in G2 cache")
+                        });
 
                         let ml_result = profile("multi_pair_cached::miller_loop_partial", || {
                             Bn254::multi_miller_loop(g1_prepared, g2_prepared).0
@@ -748,26 +726,6 @@ pub type G2PrecomputedData = PrecomputedShamir4Data;
 // Optimized MSM implementation using ark-ec's VariableBaseMSM for G1
 pub struct OptimizedMsmG1;
 
-impl OptimizedMsmG1 {
-    /// Cached version of fixed_scalar_variable_with_add that uses precomputed data
-    pub fn fixed_scalar_variable_with_add_cached(
-        precomputed_tables: &[jolt_optimizations::PrecomputedShamir2Table],
-        vs: &mut [G1Affine], 
-        scalar: &Fr
-    ) {
-        // Convert to projective for computation
-        let mut vs_proj: Vec<G1Projective> = vs.iter().map(|v| v.into_group()).collect();
-        
-        // Use jolt-optimizations function with precomputed data
-        jolt_optimizations::vector_add_scalar_mul_g1_precomputed(&mut vs_proj, *scalar, precomputed_tables);
-        
-        // Convert back to affine
-        for (i, proj) in vs_proj.into_iter().enumerate() {
-            vs[i] = proj.into_affine();
-        }
-    }
-}
-
 impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
     fn msm(bases: &[G1Affine], scalars: &[Fr]) -> G1Affine {
         if bases.is_empty() {
@@ -793,9 +751,7 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
         let results_proj = jolt_optimizations::fixed_base_vector_msm_g1(&base_proj, scalars);
         
         // Convert results back to affine
-        results_proj.into_iter()
-            .map(|p| p.into_affine())
-            .collect()
+        G1Projective::normalize_batch(&results_proj)
     }
 
     fn fixed_scalar_variable_with_add(bases: &[G1Affine], vs: &mut [G1Affine], scalar: &Fr) {
@@ -819,8 +775,9 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
         
         // Convert back to affine
         profile("g1_online::to_affine", || {
-            for (i, proj) in vs_proj.into_iter().enumerate() {
-                vs[i] = proj.into_affine();
+            let affines = G1Projective::normalize_batch(&vs_proj);
+            for (i, affine) in affines.into_iter().enumerate() {
+                vs[i] = affine;
             }
         });
     }
@@ -854,8 +811,9 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
             
             // Convert back to affine
             profile("g1_cached::to_affine", || {
-                for (i, proj) in vs_proj.into_iter().enumerate() {
-                    vs[i] = proj.into_affine();
+                let affines = G1Projective::normalize_batch(&vs_proj);
+                for (i, affine) in affines.into_iter().enumerate() {
+                    vs[i] = affine;
                 }
             });
         } else {
@@ -885,8 +843,9 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
         
         // Convert back to affine
         profile("g1_scale::to_affine", || {
-            for (i, proj) in vs_proj.into_iter().enumerate() {
-                vs[i] = proj.into_affine();
+            let affines = G1Projective::normalize_batch(&vs_proj);
+            for (i, affine) in affines.into_iter().enumerate() {
+                vs[i] = affine;
             }
         });
     }
@@ -895,25 +854,36 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
 // Optimized MSM implementation using ark-ec's VariableBaseMSM for G2
 pub struct OptimizedMsmG2;
 
-impl OptimizedMsmG2 {
-    /// Cached version of fixed_scalar_variable_with_add that uses precomputed data
-    pub fn fixed_scalar_variable_with_add_cached(
-        precomputed_tables: &[jolt_optimizations::PrecomputedShamir4Table],
-        vs: &mut [G2AffineWrapper], 
-        scalar: &Fr
-    ) {
-        // Convert to projective for computation
-        let mut vs_proj: Vec<G2Projective> = vs.iter().map(|v| v.0.into_group()).collect();
+// impl OptimizedMsmG2 {
+//     /// Cached version of fixed_scalar_variable_with_add that uses precomputed data
+//     pub fn fixed_scalar_variable_with_add_cached(
+//         precomputed_tables: &[jolt_optimizations::PrecomputedShamir4Table],
+//         vs: &mut [G2AffineWrapper], 
+//         scalar: &Fr
+//     ) {
+//         use crate::profiler::profile;
         
-        // Use jolt-optimizations function with precomputed data
-        jolt_optimizations::vector_add_scalar_mul_g2_precomputed(&mut vs_proj, *scalar, precomputed_tables);
-        
-        // Convert back to affine wrapper
-        for (i, proj) in vs_proj.into_iter().enumerate() {
-            vs[i] = G2AffineWrapper(proj.into_affine());
-        }
-    }
-}
+//         profile("g2_fixed_scalar_variable_with_add_cached", || {
+//             // Convert to projective for computation
+//             let mut vs_proj: Vec<G2Projective> = profile("g2_fixed_scalar_cached::to_projective", || {
+//                 vs.iter().map(|v| v.0.into_group()).collect()
+//             });
+            
+//             // Use jolt-optimizations function with precomputed data
+//             profile("g2_fixed_scalar_cached::vector_add_scalar_mul_precomputed", || {
+//                 jolt_optimizations::vector_add_scalar_mul_g2_precomputed(&mut vs_proj, *scalar, precomputed_tables);
+//             });
+            
+//             // Convert back to affine wrapper
+//             profile("g2_fixed_scalar_cached::to_affine", || {
+//                 let affines = G2Projective::normalize_batch(&vs_proj);
+//                 for (i, affine) in affines.into_iter().enumerate() {
+//                     vs[i] = G2AffineWrapper(affine);
+//                 }
+//             });
+//         });
+//     }
+// }
 
 impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
     fn msm(bases: &[G2AffineWrapper], scalars: &[Fr]) -> G2AffineWrapper {
@@ -945,15 +915,18 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
         // Use glv_four_scalar_mul_online for fixed base vector MSM
         
         // Compute scalar multiplication for each scalar with the fixed base
-        let results: Vec<G2AffineWrapper> = scalars
+        let results_proj: Vec<G2Projective> = scalars
             .par_iter()
             .map(|&scalar| {
-                let result_proj = jolt_optimizations::glv_four_scalar_mul_online(scalar, &[base_proj])[0];
-                G2AffineWrapper(result_proj.into_affine())
+                jolt_optimizations::glv_four_scalar_mul_online(scalar, &[base_proj])[0]
             })
             .collect();
         
-        results
+        // Batch convert to affine
+        let affines = G2Projective::normalize_batch(&results_proj);
+        affines.into_iter()
+            .map(|affine| G2AffineWrapper(affine))
+            .collect()
     }
 
     fn fixed_scalar_variable_with_add(
@@ -980,8 +953,9 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
         
         // Convert back to affine wrapper
         profile("g2_online::to_affine", || {
-            for (i, proj) in vs_proj.into_iter().enumerate() {
-                vs[i] = G2AffineWrapper(proj.into_affine());
+            let affines = G2Projective::normalize_batch(&vs_proj);
+            for (i, affine) in affines.into_iter().enumerate() {
+                vs[i] = G2AffineWrapper(affine);
             }
         });
     }
@@ -1015,8 +989,9 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
             
             // Convert back to affine wrapper
             profile("g2_cached::to_affine", || {
-                for (i, proj) in vs_proj.into_iter().enumerate() {
-                    vs[i] = G2AffineWrapper(proj.into_affine());
+                let affines = G2Projective::normalize_batch(&vs_proj);
+                for (i, affine) in affines.into_iter().enumerate() {
+                    vs[i] = G2AffineWrapper(affine);
                 }
             });
         } else {
@@ -1050,8 +1025,9 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
         
         // Convert back to affine wrapper
         profile("g2_scale::to_affine", || {
-            for (i, proj) in vs_proj.into_iter().enumerate() {
-                vs[i] = G2AffineWrapper(proj.into_affine());
+            let affines = G2Projective::normalize_batch(&vs_proj);
+            for (i, affine) in affines.into_iter().enumerate() {
+                vs[i] = G2AffineWrapper(affine);
             }
         });
     }
