@@ -507,6 +507,8 @@ pub struct G1CacheEntry {
 pub struct G1Cache {
     /// Cached entries indexed by position
     pub entries: Vec<G1CacheEntry>,
+    /// Full precomputed data for efficient slicing
+    pub precomputed_data: Option<PrecomputedShamir2Data>,
 }
 
 impl G1Cache {
@@ -543,7 +545,10 @@ impl G1Cache {
             })
             .collect();
 
-        Self { entries }
+        Self { 
+            entries,
+            precomputed_data: Some(precomputed_data),
+        }
     }
 
     /// Save cache to file
@@ -594,13 +599,15 @@ impl G1Cache {
     }
     
     /// Get precomputed Shamir data for a slice of generators
-    pub fn get_precomputed_slice(&self, count: usize) -> PrecomputedShamir2Data {
-        // Extract the precomputed tables from the cache entries
-        let tables = self.entries[..count]
-            .iter()
-            .map(|e| e.precomputed_shamir.clone())
-            .collect();
-        PrecomputedShamir2Data { shamir_tables: tables }
+    /// Returns a slice reference for zero-copy access
+    pub fn get_precomputed_slice(&self, count: usize) -> &[jolt_optimizations::PrecomputedShamir2Table] {
+        assert!(count <= self.entries.len(), "Requested count exceeds cache size");
+        
+        if let Some(ref data) = self.precomputed_data {
+            &data.shamir_tables[..count]
+        } else {
+            panic!("Precomputed data not available");
+        }
     }
 }
 
@@ -624,6 +631,8 @@ pub struct G2CacheEntry {
 pub struct G2Cache {
     /// Cached entries indexed by position
     pub entries: Vec<G2CacheEntry>,
+    /// Full precomputed data for efficient slicing
+    pub precomputed_data: Option<PrecomputedShamir4Data>,
 }
 
 impl G2Cache {
@@ -660,7 +669,10 @@ impl G2Cache {
             })
             .collect();
 
-        Self { entries }
+        Self { 
+            entries,
+            precomputed_data: Some(precomputed_data),
+        }
     }
 
     /// Initialize cache from a vector of G2AffineWrapper points
@@ -717,13 +729,15 @@ impl G2Cache {
     }
     
     /// Get precomputed Shamir data for a slice of generators
-    pub fn get_precomputed_slice(&self, count: usize) -> PrecomputedShamir4Data {
-        // Extract the precomputed tables from the cache entries
-        let tables = self.entries[..count]
-            .iter()
-            .map(|e| e.precomputed_shamir.clone())
-            .collect();
-        PrecomputedShamir4Data { shamir_tables: tables }
+    /// Returns a slice reference for zero-copy access
+    pub fn get_precomputed_slice(&self, count: usize) -> &[jolt_optimizations::PrecomputedShamir4Table] {
+        assert!(count <= self.entries.len(), "Requested count exceeds cache size");
+        
+        if let Some(ref data) = self.precomputed_data {
+            &data.shamir_tables[..count]
+        } else {
+            panic!("Precomputed data not available");
+        }
     }
 }
 
@@ -737,7 +751,7 @@ pub struct OptimizedMsmG1;
 impl OptimizedMsmG1 {
     /// Cached version of fixed_scalar_variable_with_add that uses precomputed data
     pub fn fixed_scalar_variable_with_add_cached(
-        precomputed: &G1PrecomputedData,
+        precomputed_tables: &[jolt_optimizations::PrecomputedShamir2Table],
         vs: &mut [G1Affine], 
         scalar: &Fr
     ) {
@@ -745,7 +759,7 @@ impl OptimizedMsmG1 {
         let mut vs_proj: Vec<G1Projective> = vs.iter().map(|v| v.into_group()).collect();
         
         // Use jolt-optimizations function with precomputed data
-        jolt_optimizations::vector_add_scalar_mul_g1_precomputed(&mut vs_proj, *scalar, precomputed);
+        jolt_optimizations::vector_add_scalar_mul_g1_precomputed(&mut vs_proj, *scalar, precomputed_tables);
         
         // Convert back to affine
         for (i, proj) in vs_proj.into_iter().enumerate() {
@@ -835,7 +849,7 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
             
             // Use jolt-optimizations function with precomputed data
             profile("g1_cached::vector_add_scalar_mul_precomputed", || {
-                jolt_optimizations::vector_add_scalar_mul_g1_precomputed(&mut vs_proj, *scalar, &precomputed);
+                jolt_optimizations::vector_add_scalar_mul_g1_precomputed(&mut vs_proj, *scalar, precomputed);
             });
             
             // Convert back to affine
@@ -884,7 +898,7 @@ pub struct OptimizedMsmG2;
 impl OptimizedMsmG2 {
     /// Cached version of fixed_scalar_variable_with_add that uses precomputed data
     pub fn fixed_scalar_variable_with_add_cached(
-        precomputed: &G2PrecomputedData,
+        precomputed_tables: &[jolt_optimizations::PrecomputedShamir4Table],
         vs: &mut [G2AffineWrapper], 
         scalar: &Fr
     ) {
@@ -892,7 +906,7 @@ impl OptimizedMsmG2 {
         let mut vs_proj: Vec<G2Projective> = vs.iter().map(|v| v.0.into_group()).collect();
         
         // Use jolt-optimizations function with precomputed data
-        jolt_optimizations::vector_add_scalar_mul_g2_precomputed(&mut vs_proj, *scalar, precomputed);
+        jolt_optimizations::vector_add_scalar_mul_g2_precomputed(&mut vs_proj, *scalar, precomputed_tables);
         
         // Convert back to affine wrapper
         for (i, proj) in vs_proj.into_iter().enumerate() {
@@ -996,7 +1010,7 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
             
             // Use jolt-optimizations function with precomputed data
             profile("g2_cached::vector_add_scalar_mul_precomputed", || {
-                jolt_optimizations::vector_add_scalar_mul_g2_precomputed(&mut vs_proj, *scalar, &precomputed);
+                jolt_optimizations::vector_add_scalar_mul_g2_precomputed(&mut vs_proj, *scalar, precomputed);
             });
             
             // Convert back to affine wrapper

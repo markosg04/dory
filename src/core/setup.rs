@@ -240,12 +240,12 @@ impl<E: Pairing> ProverSetup<E> {
     }
     
     /// Get precomputed G1 data for a specific count if cache is available
-    pub fn get_g1_precomputed(&self, count: usize) -> Option<crate::curve::G1PrecomputedData> {
+    pub fn get_g1_precomputed(&self, count: usize) -> Option<&[jolt_optimizations::PrecomputedShamir2Table]> {
         self.g1_cache.as_ref().map(|cache| cache.get_precomputed_slice(count))
     }
     
     /// Get precomputed G2 data for a specific count if cache is available
-    pub fn get_g2_precomputed(&self, count: usize) -> Option<crate::curve::G2PrecomputedData> {
+    pub fn get_g2_precomputed(&self, count: usize) -> Option<&[jolt_optimizations::PrecomputedShamir4Table]> {
         self.g2_cache.as_ref().map(|cache| cache.get_precomputed_slice(count))
     }
 
