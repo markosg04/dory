@@ -315,7 +315,7 @@ impl Pairing for ArkBn254Pairing {
                         .expect("Index out of bounds in G2 cache")
                 });
 
-                let ml_result = Bn254::multi_miller_loop_ref(g1_prepared, g2_prepared).0;
+                let ml_result = Bn254::multi_miller_loop(g1_prepared, g2_prepared).0;
 
                 let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
                     .expect("Final exponentiation should not fail");
@@ -346,7 +346,7 @@ impl Pairing for ArkBn254Pairing {
                     .map(|q| BnG2Prepared::from(q.0))
                     .collect::<Vec<_>>();
 
-                let ml_result = Bn254::multi_miller_loop_ref(g1_prepared, &g2_prepared).0;
+                let ml_result = Bn254::multi_miller_loop(g1_prepared, &g2_prepared).0;
 
                 let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
                     .expect("Final exponentiation should not fail");
@@ -377,7 +377,7 @@ impl Pairing for ArkBn254Pairing {
                         .expect("Index out of bounds in G2 cache")
                 });
 
-                let ml_result = Bn254::multi_miller_loop_ref(&g1_prepared, g2_prepared).0;
+                let ml_result = Bn254::multi_miller_loop(&g1_prepared, g2_prepared).0;
 
                 let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
                     .expect("Final exponentiation should not fail");
@@ -406,7 +406,7 @@ impl Pairing for ArkBn254Pairing {
                     .map(|q| BnG2Prepared::from(q.0))
                     .collect::<Vec<_>>();
 
-                let ml_result = Bn254::multi_miller_loop_ref(&left, &right).0;
+                let ml_result = Bn254::multi_miller_loop(&left, &right).0;
 
                 let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
                     .expect("Final exponentiation should not fail");
