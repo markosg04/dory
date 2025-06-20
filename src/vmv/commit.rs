@@ -21,7 +21,7 @@ pub fn compute_polynomial_commitment<
     let num_columns = 1 << sigma;
 
     // Handle arbitrary offset within the matrix
-    let first_row_offset = offset % num_columns; // Column start position
+    let _first_row_offset = offset % num_columns; // Column start position
     let rows_offset = offset / num_columns; // Row start position
 
     // let _first_row_len = poly.len().min(num_columns - first_row_offset);

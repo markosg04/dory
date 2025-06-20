@@ -14,8 +14,11 @@ use ark_std::rand::{rngs::StdRng, RngCore, SeedableRng};
 use rayon::prelude::*;
 
 use jolt_optimizations::{
-    dory_g1::precompute_g1_generators, dory_g2::precompute_g2_generators, PrecomputedShamir2Data,
+    dory_g1::precompute_g1_generators_windowed2_signed,
+    dory_g2::precompute_g2_generators_windowed2_signed,
+    vector_add_scalar_mul_g1_windowed2_signed, vector_add_scalar_mul_g2_windowed2_signed,
     PrecomputedShamir4Data,
+    Windowed2Signed2Data, Windowed2Signed4Data,
 };
 
 /// Create a fixed RNG for deterministic tests
@@ -432,8 +435,6 @@ pub struct G1CacheEntry {
     pub prepared: BnG1Prepared<ark_bn254::Config>,
     /// Precomputed small multiples [1g, 2g, 3g, ..., 8g]
     pub multiples: [G1Projective; 2],
-    /// Precomputed Shamir table for optimized scalar multiplication
-    pub precomputed_shamir: jolt_optimizations::PrecomputedShamir2Table,
 }
 
 /// Cache for multiple G1 points
@@ -441,8 +442,8 @@ pub struct G1CacheEntry {
 pub struct G1Cache {
     /// Cached entries indexed by position
     pub entries: Vec<G1CacheEntry>,
-    /// Full precomputed data for efficient slicing
-    pub precomputed_data: Option<PrecomputedShamir2Data>,
+    /// Full precomputed windowed2 signed data for efficient scalar multiplication
+    pub precomputed_data: Option<Windowed2Signed2Data>,
 }
 
 impl G1Cache {
@@ -452,20 +453,19 @@ impl G1Cache {
         let generators_proj: Vec<G1Projective> =
             generators.iter().map(|g| g.into_group()).collect();
 
-        // Create precomputed Shamir data for all generators
-        let precomputed_data = precompute_g1_generators(&generators_proj);
+        // Create precomputed windowed2 signed data for all generators
+        let precomputed_data = precompute_g1_generators_windowed2_signed(&generators_proj);
 
         let entries: Vec<G1CacheEntry> = generators
             .par_iter()
-            .enumerate()
-            .map(|(idx, &g)| {
+            .map(|&g| {
                 let projective = g.into_group();
                 let prepared = BnG1Prepared::from(g);
 
                 // Compute small multiples
                 let mut multiples = [G1Projective::zero(); 2];
                 let mut acc = projective;
-                for i in 0..2 {
+                for i in 0..0 {
                     multiples[i] = acc;
                     acc = acc + projective;
                 }
@@ -475,7 +475,6 @@ impl G1Cache {
                     projective,
                     prepared,
                     multiples,
-                    precomputed_shamir: precomputed_data.shamir_tables[idx].clone(),
                 }
             })
             .collect();
@@ -547,7 +546,7 @@ impl G1Cache {
             .collect::<Result<Vec<_>, SerializationError>>()?;
 
         // Read precomputed_data
-        let precomputed_data = Option::<PrecomputedShamir2Data>::deserialize_compressed(&mut file)?;
+        let precomputed_data = Option::<Windowed2Signed2Data>::deserialize_compressed(&mut file)?;
 
         Ok(Self {
             entries,
@@ -588,22 +587,10 @@ impl G1Cache {
         self.entries.is_empty()
     }
 
-    /// Get precomputed Shamir data for a slice of generators
-    /// Returns a slice reference for zero-copy access
-    pub fn get_precomputed_slice(
-        &self,
-        count: usize,
-    ) -> &[jolt_optimizations::PrecomputedShamir2Table] {
-        assert!(
-            count <= self.entries.len(),
-            "Requested count exceeds cache size"
-        );
-
-        if let Some(ref data) = self.precomputed_data {
-            &data.shamir_tables[..count]
-        } else {
-            panic!("Precomputed data not available");
-        }
+    /// Get precomputed windowed2 signed data
+    /// Returns a reference to the full windowed data structure
+    pub fn get_windowed_data(&self) -> Option<&Windowed2Signed2Data> {
+        self.precomputed_data.as_ref()
     }
 }
 
@@ -618,8 +605,6 @@ pub struct G2CacheEntry {
     pub prepared: BnG2Prepared<ark_bn254::Config>,
     /// Precomputed small multiples [1g, 2g, 3g, ..., 8g]
     pub multiples: [G2Projective; 2],
-    /// Precomputed Shamir table for optimized scalar multiplication
-    pub precomputed_shamir: jolt_optimizations::PrecomputedShamir4Table,
 }
 
 /// Cache for multiple G2 points
@@ -627,8 +612,8 @@ pub struct G2CacheEntry {
 pub struct G2Cache {
     /// Cached entries indexed by position
     pub entries: Vec<G2CacheEntry>,
-    /// Full precomputed data for efficient slicing
-    pub precomputed_data: Option<PrecomputedShamir4Data>,
+    /// Full precomputed windowed2 signed data for efficient scalar multiplication
+    pub precomputed_data: Option<Windowed2Signed4Data>,
     /// Precomputed GLV tables for g_fin point (if provided)
     pub g_fin_glv_tables: Option<PrecomputedShamir4Data>,
 }
@@ -640,20 +625,19 @@ impl G2Cache {
         let generators_proj: Vec<G2Projective> =
             generators.iter().map(|g| g.into_group()).collect();
 
-        // Create precomputed Shamir data for all generators
-        let precomputed_data = precompute_g2_generators(&generators_proj);
+        // Create precomputed windowed2 signed data for all generators
+        let precomputed_data = precompute_g2_generators_windowed2_signed(&generators_proj);
 
         let entries: Vec<G2CacheEntry> = generators
             .par_iter()
-            .enumerate()
-            .map(|(idx, &g)| {
+            .map(|&g| {
                 let projective = g.into_group();
                 let prepared = BnG2Prepared::from(g);
 
                 // Compute small multiples
                 let mut multiples = [G2Projective::zero(); 2];
                 let mut acc = projective;
-                for i in 0..2 {
+                for i in 0..0 {
                     multiples[i] = acc;
                     acc = acc + projective;
                 }
@@ -663,7 +647,6 @@ impl G2Cache {
                     projective,
                     prepared,
                     multiples,
-                    precomputed_shamir: precomputed_data.shamir_tables[idx].clone(),
                 }
             })
             .collect();
@@ -755,7 +738,7 @@ impl G2Cache {
             .collect::<Result<Vec<_>, SerializationError>>()?;
 
         // Read precomputed_data
-        let precomputed_data = Option::<PrecomputedShamir4Data>::deserialize_compressed(&mut file)?;
+        let precomputed_data = Option::<Windowed2Signed4Data>::deserialize_compressed(&mut file)?;
 
         // Read g_fin_glv_tables
         let g_fin_glv_tables = Option::<PrecomputedShamir4Data>::deserialize_compressed(&mut file)?;
@@ -800,22 +783,10 @@ impl G2Cache {
         self.entries.is_empty()
     }
 
-    /// Get precomputed Shamir data for a slice of generators
-    /// Returns a slice reference for zero-copy access
-    pub fn get_precomputed_slice(
-        &self,
-        count: usize,
-    ) -> &[jolt_optimizations::PrecomputedShamir4Table] {
-        assert!(
-            count <= self.entries.len(),
-            "Requested count exceeds cache size"
-        );
-
-        if let Some(ref data) = self.precomputed_data {
-            &data.shamir_tables[..count]
-        } else {
-            panic!("Precomputed data not available");
-        }
+    /// Get precomputed windowed2 signed data
+    /// Returns a reference to the full windowed data structure
+    pub fn get_windowed_data(&self) -> Option<&Windowed2Signed4Data> {
+        self.precomputed_data.as_ref()
     }
 
     /// Get precomputed GLV tables for g_fin if available
@@ -826,8 +797,8 @@ impl G2Cache {
 }
 
 // Create type aliases for cleaner code
-pub type G1PrecomputedData = PrecomputedShamir2Data;
-pub type G2PrecomputedData = PrecomputedShamir4Data;
+pub type G1PrecomputedData = Windowed2Signed2Data;
+pub type G2PrecomputedData = Windowed2Signed4Data;
 
 // Optimized MSM implementation using ark-ec's VariableBaseMSM for G1
 pub struct OptimizedMsmG1;
@@ -900,23 +871,37 @@ impl MultiScalarMul<G1Affine> for OptimizedMsmG1 {
         assert_eq!(bases_count, vs.len(), "bases_count must equal vs length");
 
         if let Some(cache) = g1_cache {
-            // Get precomputed data from cache
-            let precomputed = cache.get_precomputed_slice(bases_count);
+            if let Some(windowed_data) = cache.get_windowed_data() {
+                // Check if we have enough precomputed data
+                assert!(
+                    bases_count <= windowed_data.windowed2_tables.len(),
+                    "Requested bases_count {} exceeds precomputed data size {}",
+                    bases_count,
+                    windowed_data.windowed2_tables.len()
+                );
 
-            // Convert to projective for computation
-            let mut vs_proj: Vec<G1Projective> = vs.iter().map(|v| v.into_group()).collect();
+                // Convert to projective for computation
+                let mut vs_proj: Vec<G1Projective> = vs.iter().map(|v| v.into_group()).collect();
 
-            // Use jolt-optimizations function with precomputed data
-            jolt_optimizations::vector_add_scalar_mul_g1_precomputed(
-                &mut vs_proj,
-                *scalar,
-                precomputed,
-            );
+                // Create a subset of the windowed data for the required count
+                let subset_data = jolt_optimizations::Windowed2Signed2Data {
+                    windowed2_tables: windowed_data.windowed2_tables[..bases_count].to_vec(),
+                };
 
-            // Convert back to affine
-            let affines = G1Projective::normalize_batch(&vs_proj);
-            for (i, affine) in affines.into_iter().enumerate() {
-                vs[i] = affine;
+                // Use jolt-optimizations function with windowed2 signed data
+                vector_add_scalar_mul_g1_windowed2_signed(
+                    &mut vs_proj,
+                    *scalar,
+                    &subset_data,
+                );
+
+                // Convert back to affine
+                let affines = G1Projective::normalize_batch(&vs_proj);
+                for (i, affine) in affines.into_iter().enumerate() {
+                    vs[i] = affine;
+                }
+            } else {
+                panic!("Windowed data not available in G1 cache");
             }
         } else {
             // Fall back to extracting bases from cache and using online version
@@ -1057,23 +1042,37 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
         assert_eq!(bases_count, vs.len(), "bases_count must equal vs length");
 
         if let Some(cache) = g2_cache {
-            // Get precomputed data from cache
-            let precomputed = cache.get_precomputed_slice(bases_count);
+            if let Some(windowed_data) = cache.get_windowed_data() {
+                // Check if we have enough precomputed data
+                assert!(
+                    bases_count <= windowed_data.windowed2_tables.len(),
+                    "Requested bases_count {} exceeds precomputed data size {}",
+                    bases_count,
+                    windowed_data.windowed2_tables.len()
+                );
 
-            // Convert to projective for computation
-            let mut vs_proj: Vec<G2Projective> = vs.iter().map(|v| v.0.into_group()).collect();
+                // Convert to projective for computation
+                let mut vs_proj: Vec<G2Projective> = vs.iter().map(|v| v.0.into_group()).collect();
 
-            // Use jolt-optimizations function with precomputed data
-            jolt_optimizations::vector_add_scalar_mul_g2_precomputed(
-                &mut vs_proj,
-                *scalar,
-                precomputed,
-            );
+                // Create a subset of the windowed data for the required count
+                let subset_data = jolt_optimizations::Windowed2Signed4Data {
+                    windowed2_tables: windowed_data.windowed2_tables[..bases_count].to_vec(),
+                };
 
-            // Convert back to affine wrapper
-            let affines = G2Projective::normalize_batch(&vs_proj);
-            for (i, affine) in affines.into_iter().enumerate() {
-                vs[i] = G2AffineWrapper(affine);
+                // Use jolt-optimizations function with windowed2 signed data
+                vector_add_scalar_mul_g2_windowed2_signed(
+                    &mut vs_proj,
+                    *scalar,
+                    &subset_data,
+                );
+
+                // Convert back to affine wrapper
+                let affines = G2Projective::normalize_batch(&vs_proj);
+                for (i, affine) in affines.into_iter().enumerate() {
+                    vs[i] = G2AffineWrapper(affine);
+                }
+            } else {
+                panic!("Windowed data not available in G2 cache");
             }
         } else {
             // Fall back to extracting bases from cache and using online version

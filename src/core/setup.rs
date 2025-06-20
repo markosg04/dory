@@ -240,24 +240,18 @@ impl<E: Pairing> ProverSetup<E> {
         self.g1_cache.is_some() && self.g2_cache.is_some()
     }
 
-    /// Get precomputed G1 data for a specific count if cache is available
-    pub fn get_g1_precomputed(
-        &self,
-        count: usize,
-    ) -> Option<&[jolt_optimizations::PrecomputedShamir2Table]> {
+    /// Get windowed G1 data if cache is available
+    pub fn get_g1_windowed(&self) -> Option<&jolt_optimizations::Windowed2Signed2Data> {
         self.g1_cache
             .as_ref()
-            .map(|cache| cache.get_precomputed_slice(count))
+            .and_then(|cache| cache.get_windowed_data())
     }
 
-    /// Get precomputed G2 data for a specific count if cache is available
-    pub fn get_g2_precomputed(
-        &self,
-        count: usize,
-    ) -> Option<&[jolt_optimizations::PrecomputedShamir4Table]> {
+    /// Get windowed G2 data if cache is available
+    pub fn get_g2_windowed(&self) -> Option<&jolt_optimizations::Windowed2Signed4Data> {
         self.g2_cache
             .as_ref()
-            .map(|cache| cache.get_precomputed_slice(count))
+            .and_then(|cache| cache.get_windowed_data())
     }
 
     // Convenient accessors for core fields
