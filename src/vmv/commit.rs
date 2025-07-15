@@ -17,7 +17,7 @@ pub fn compute_polynomial_commitment<
     offset: usize, // Starting position in matrix
     sigma: usize,  // log₂(matrix_width)
     prover_setup: &ProverSetup<E>,
-) -> E::GT {
+) -> (E::GT, Vec<G1>) {
     let num_columns = 1 << sigma;
 
     let rows_offset = offset / num_columns; // Row start position
@@ -29,5 +29,7 @@ pub fn compute_polynomial_commitment<
     // --- TIER 2: Multi-pairing to combine row commitments ---
 
     let g2_elements = &prover_setup.g2_vec()[rows_offset..rows_offset + row_commitments.len()];
-    E::multi_pair(&row_commitments, g2_elements) // Final commitment in GT
+    let commitment = E::multi_pair(&row_commitments, g2_elements); // Final commitment in GT
+                                                                   // Return `row_commitments` because they will come in handy for the opening proof
+    (commitment, row_commitments)
 }

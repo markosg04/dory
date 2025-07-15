@@ -1,7 +1,6 @@
 #![allow(missing_docs)]
 use ark_bn254::{Fq12, Fr, G1Affine};
 use ark_ff::UniformRand;
-use blake2::Blake2s256;
 use dory::{
     arithmetic::{Field, Group, MultiScalarMul, Pairing},
     builder::{DoryProofBuilder, DoryVerifyBuilder},
@@ -12,9 +11,7 @@ use dory::{
     toy_transcript::ToyTranscript,
 };
 
-use dory::curve::{
-    test_rng, ArkBn254Pairing, G2AffineWrapper, OptimizedMsmG1, OptimizedMsmG2, StandardPolynomial,
-};
+use dory::curve::{test_rng, ArkBn254Pairing, G2AffineWrapper, OptimizedMsmG1, OptimizedMsmG2};
 
 // Helper function to generate test environment
 fn setup_scalar_product_test_environment(
@@ -249,7 +246,6 @@ fn test_soundness_scalar_product_scaled_values() {
 #[test]
 fn test_soundness_scalar_product_relationship_attack() {
     println!("=== Testing soundness: scalar product relationship attack ===");
-    let rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
 

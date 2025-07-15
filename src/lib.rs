@@ -165,7 +165,7 @@ pub fn commit<E, M1, P>(
     offset: usize,
     sigma: usize,
     prover_setup: &ProverSetup<E>,
-) -> E::GT
+) -> (E::GT, Vec<E::G1>)
 where
     E: Pairing,
     M1: MultiScalarMul<E::G1>,
@@ -173,14 +173,12 @@ where
     E::G1: Group,
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
-    let result = compute_polynomial_commitment::<E, M1, P, <E::G1 as Group>::Scalar, E::G1>(
+    compute_polynomial_commitment::<E, M1, P, <E::G1 as Group>::Scalar, E::G1>(
         polynomial,
         offset,
         sigma,
         prover_setup,
-    );
-
-    result
+    )
 }
 
 /// Evaluate a polynomial at a point and produce a proof

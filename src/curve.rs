@@ -1497,7 +1497,7 @@ where
     F: Field + Clone,
 {
     // Compute the commitment to the polynomial
-    let commitment =
+    let (commitment, _) =
         compute_polynomial_commitment::<E, M1, _, F, G1>(poly, offset, sigma, prover_setup);
 
     // Compute the evaluation of the polynomial at the point

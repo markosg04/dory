@@ -13,7 +13,7 @@ use dory::curve::{
 // Helper function to generate test environment for PCS tests
 fn setup_pcs_test_environment(
     num_variables: usize,
-    sigma: usize,
+    _sigma: usize,
 ) -> (
     dory::setup::ProverSetup<ArkBn254Pairing>,
     dory::setup::VerifierSetup<ArkBn254Pairing>,
@@ -50,19 +50,19 @@ fn test_soundness_wrong_evaluation() {
 
     // Commit to polynomial
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     // Generate proof
+    let correct_evaluation = polynomial.evaluate(&point);
     let transcript = create_transcript(domain);
-    let (correct_evaluation, proof) =
-        evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
-            &StandardPolynomial::new(&coeffs),
-            &point,
-            sigma,
-            &prover_setup,
-            transcript,
-        );
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+        &StandardPolynomial::new(&coeffs),
+        &point,
+        sigma,
+        &prover_setup,
+        transcript,
+    );
 
     // Try to verify with wrong evaluation
     let wrong_evaluation = correct_evaluation + Fr::rand(&mut rng);
@@ -98,8 +98,10 @@ fn test_soundness_wrong_commitment() {
         setup_pcs_test_environment(num_variables, sigma);
 
     // Generate proof
+    let polynomial = StandardPolynomial::new(&coeffs);
+    let evaluation = polynomial.evaluate(&point);
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
@@ -142,18 +144,19 @@ fn test_soundness_wrong_evaluation_point() {
 
     // Commit to polynomial
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     // Generate proof for one point
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = polynomial.evaluate(&point);
 
     // Try to verify with different point
     let mut wrong_point = point.clone();
@@ -198,8 +201,10 @@ fn test_soundness_binding_property() {
     // Commit to both polynomials
     let poly1 = StandardPolynomial::new(&coeffs1);
     let poly2 = StandardPolynomial::new(&coeffs2);
-    let commitment1 = commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly1, 0, sigma, &prover_setup);
-    let commitment2 = commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly2, 0, sigma, &prover_setup);
+    let (commitment1, _) =
+        commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly1, 0, sigma, &prover_setup);
+    let (commitment2, _) =
+        commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly2, 0, sigma, &prover_setup);
 
     // Commitments should be different
     assert_ne!(
@@ -209,13 +214,14 @@ fn test_soundness_binding_property() {
 
     // Generate proof for first polynomial
     let transcript = create_transcript(domain);
-    let (eval1, proof1) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof1 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs1),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let eval1 = poly1.evaluate(&point);
 
     // Try to use proof1 with commitment2
     // Create fresh transcript for verification
@@ -255,18 +261,19 @@ fn test_soundness_polynomial_mismatch() {
 
     // Commit to first polynomial
     let polynomial = StandardPolynomial::new(&coeffs1);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     // Generate proof for second polynomial
     let transcript = create_transcript(domain);
-    let (eval2, proof2) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs2),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let eval2 = polynomial.evaluate(&point);
 
     // Try to verify commitment1 with proof from coeffs2
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
@@ -289,7 +296,6 @@ fn test_soundness_polynomial_mismatch() {
 #[test]
 fn test_soundness_offset_manipulation() {
     println!("=== Testing soundness: commitment offset manipulation ===");
-    let rng = test_rng();
     let domain = b"pcs_soundness_test";
 
     let num_variables = 10;
@@ -298,24 +304,22 @@ fn test_soundness_offset_manipulation() {
     let (prover_setup, verifier_setup, coeffs, point) =
         setup_pcs_test_environment(num_variables, sigma);
 
-    // Commit with offset 0
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment1 =
-        commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     // Commit with different offset
-    let commitment2 =
+    let (commitment2, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 16, sigma, &prover_setup);
 
     // Generate proof for offset 0
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = polynomial.evaluate(&point);
 
     // Try to verify commitment2 (offset 16) with proof from offset 0
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
@@ -338,7 +342,6 @@ fn test_soundness_offset_manipulation() {
 #[test]
 fn test_soundness_zero_polynomial() {
     println!("=== Testing soundness: zero polynomial special case ===");
-    let mut rng = test_rng();
     let domain = b"pcs_soundness_test";
 
     let num_variables = 10;
@@ -351,11 +354,11 @@ fn test_soundness_zero_polynomial() {
     let zero_coeffs: Vec<Fr> = vec![Fr::zero(); num_coeffs];
 
     let zero_poly = StandardPolynomial::new(&zero_coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&zero_poly, 0, sigma, &prover_setup);
 
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&zero_coeffs),
         &point,
         sigma,
@@ -365,7 +368,7 @@ fn test_soundness_zero_polynomial() {
 
     // Zero polynomial should evaluate to zero
     assert_eq!(
-        evaluation,
+        zero_poly.evaluate(&point),
         Fr::zero(),
         "Zero polynomial should evaluate to zero"
     );
@@ -407,17 +410,18 @@ fn test_soundness_constant_polynomial() {
     coeffs[0] = constant_value;
 
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = polynomial.evaluate(&point);
 
     // Constant polynomial should evaluate to the constant
     assert_eq!(
@@ -457,7 +461,7 @@ fn test_soundness_completeness_multiple_points() {
         setup_pcs_test_environment(num_variables, sigma);
 
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     // Test multiple evaluation points
@@ -466,13 +470,15 @@ fn test_soundness_completeness_multiple_points() {
         let point: Vec<Fr> = (0..num_variables).map(|_| Fr::rand(&mut rng)).collect();
 
         let transcript = create_transcript(domain);
-        let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
-            &StandardPolynomial::new(&coeffs),
+        let polynomial = StandardPolynomial::new(&coeffs);
+        let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+            &polynomial,
             &point,
             sigma,
             &prover_setup,
             transcript,
         );
+        let evaluation = polynomial.evaluate(&point);
 
         let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
             commitment,
@@ -509,27 +515,31 @@ fn test_soundness_cross_polynomial_attack() {
     // Commit to both
     let poly1 = StandardPolynomial::new(&coeffs1);
     let poly2 = StandardPolynomial::new(&coeffs2);
-    let commitment1 = commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly1, 0, sigma, &prover_setup);
-    let commitment2 = commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly2, 0, sigma, &prover_setup);
+    let (commitment1, _) =
+        commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly1, 0, sigma, &prover_setup);
+    let (commitment2, _) =
+        commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&poly2, 0, sigma, &prover_setup);
 
     // Generate proofs for both
     let transcript1 = create_transcript(domain);
-    let (eval1, proof1) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof1 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs1),
         &point,
         sigma,
         &prover_setup,
         transcript1,
     );
+    let eval1 = poly1.evaluate(&point);
 
     let transcript2 = create_transcript(domain);
-    let (eval2, proof2) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs2),
         &point,
         sigma,
         &prover_setup,
         transcript2,
     );
+    let eval2 = poly2.evaluate(&point);
 
     // Try cross-attacks
     // Attack 1: Use commitment1 with eval2 and proof2
@@ -586,18 +596,10 @@ fn test_soundness_batch_verification() {
     for _ in 0..batch_size {
         let coeffs: Vec<Fr> = (0..num_coeffs).map(|_| Fr::rand(&mut rng)).collect();
         let polynomial = StandardPolynomial::new(&coeffs);
-        let commitment =
+        let (commitment, _) =
             commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
-        let transcript = create_transcript(domain);
-        let (evaluation, _) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
-            &StandardPolynomial::new(&coeffs),
-            &point,
-            sigma,
-            &prover_setup,
-            transcript,
-        );
-
+        let evaluation = polynomial.evaluate(&point);
         coeffs_batch.push(coeffs);
         commitments.push(commitment);
         evaluations.push(evaluation);
@@ -609,7 +611,7 @@ fn test_soundness_batch_verification() {
 
         // Generate valid proof for first polynomial
         let transcript = create_transcript(domain);
-        let (_, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+        let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
             &StandardPolynomial::new(&coeffs_batch[0]),
             &point,
             sigma,
@@ -656,17 +658,18 @@ fn test_soundness_sparse_polynomial() {
     sparse_coeffs[num_coeffs - 1] = Fr::rand(&mut rng);
 
     let sparse_poly = StandardPolynomial::new(&sparse_coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&sparse_poly, 0, sigma, &prover_setup);
 
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&sparse_coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = sparse_poly.evaluate(&point);
 
     // Try to claim wrong evaluation for sparse polynomial
     let wrong_evaluation = evaluation + Fr::rand(&mut rng);
@@ -690,7 +693,6 @@ fn test_soundness_sparse_polynomial() {
 #[test]
 fn test_soundness_commitment_consistency() {
     println!("=== Testing soundness: commitment consistency ===");
-    let mut rng = test_rng();
     let domain = b"pcs_soundness_test";
 
     let num_variables = 10;
@@ -701,9 +703,9 @@ fn test_soundness_commitment_consistency() {
 
     // Commit multiple times to same polynomial
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment1 =
+    let (commitment1, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
-    let commitment2 =
+    let (commitment2, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
 
     // Commitments should be deterministic
@@ -714,13 +716,14 @@ fn test_soundness_commitment_consistency() {
 
     // Generate proof
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = polynomial.evaluate(&point);
 
     // Both commitments should verify with same proof
     let result1 = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
@@ -735,7 +738,7 @@ fn test_soundness_commitment_consistency() {
 
     // Generate proof again for second verification (can't clone DoryProofBuilder)
     let transcript2 = create_transcript(domain);
-    let (evaluation2, proof2) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
@@ -743,14 +746,9 @@ fn test_soundness_commitment_consistency() {
         transcript2,
     );
 
-    assert_eq!(
-        evaluation, evaluation2,
-        "Same polynomial should produce same evaluation"
-    );
-
     let result2 = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment2,
-        evaluation2,
+        evaluation,
         &point,
         proof2,
         sigma,
@@ -781,17 +779,18 @@ fn test_soundness_degree_bound() {
     let max_degree_coeffs: Vec<Fr> = (0..num_coeffs).map(|_| Fr::rand(&mut rng)).collect();
 
     let max_degree_poly = StandardPolynomial::new(&max_degree_coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&max_degree_poly, 0, sigma, &prover_setup);
 
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&max_degree_coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = max_degree_poly.evaluate(&point);
 
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment,
@@ -807,7 +806,7 @@ fn test_soundness_degree_bound() {
 
     // Generate new proof for wrong evaluation test (can't reuse proof)
     let transcript2 = create_transcript(domain);
-    let (evaluation2, proof2) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&max_degree_coeffs),
         &point,
         sigma,
@@ -815,13 +814,8 @@ fn test_soundness_degree_bound() {
         transcript2,
     );
 
-    assert_eq!(
-        evaluation, evaluation2,
-        "Same polynomial should produce same evaluation"
-    );
-
     // Try to claim wrong evaluation
-    let wrong_evaluation = evaluation2 + Fr::rand(&mut rng);
+    let wrong_evaluation = evaluation + Fr::rand(&mut rng);
     let result = verify::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, DummyMsm<_>>(
         commitment,
         wrong_evaluation,

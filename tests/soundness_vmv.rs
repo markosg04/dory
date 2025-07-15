@@ -525,7 +525,7 @@ fn test_soundness_commitment_evaluation_mismatch() {
     );
 
     // Get commitment for different polynomial but evaluation of original
-    let commitment = compute_polynomial_commitment::<
+    let (commitment, _) = compute_polynomial_commitment::<
         ArkBn254Pairing,
         OptimizedMsmG1,
         _,
@@ -756,7 +756,7 @@ fn test_soundness_offset_manipulation() {
 
     // Get commitment with different offset
     let wrong_offset = 16; // Different offset
-    let commitment = compute_polynomial_commitment::<
+    let (commitment, _) = compute_polynomial_commitment::<
         ArkBn254Pairing,
         OptimizedMsmG1,
         _,

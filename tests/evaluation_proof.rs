@@ -23,7 +23,7 @@ fn test_evaluation_proof_sigma_2() {
     // ----- Test Parameters -----
     let length: usize = 1 << 9;
     let max_log_n: usize = 9;
-    let sigma: usize = 9;
+    let sigma: usize = 5;
 
     println!("Parameters:");
     println!("  - Polynomial length: {}", length);
@@ -185,7 +185,7 @@ fn test_evaluation_proof_verification_should_fail() {
     // ----- Test Parameters -----
     let length: usize = 1 << 9;
     let max_log_n: usize = 9;
-    let sigma: usize = 9;
+    let sigma: usize = 5;
 
     println!("Parameters:");
     println!("  - Polynomial length: {}", length);
@@ -300,7 +300,7 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
     // ----- Test Parameters -----
     let length: usize = 1 << 9;
     let max_log_n: usize = 9;
-    let sigma: usize = 9;
+    let sigma: usize = 5;
 
     println!("Parameters:");
     println!("  - Polynomial length: {}", length);

@@ -61,7 +61,7 @@ fn test_pcs_api_workflow() {
     // Commit to polynomial
     let commit_start = Instant::now();
     let polynomial = StandardPolynomial::new(&coeffs);
-    let commitment =
+    let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
     let commit_time = commit_start.elapsed();
     println!("Commit time: {:?}", commit_time);
@@ -69,13 +69,14 @@ fn test_pcs_api_workflow() {
     // Evaluate and prove
     let eval_start = Instant::now();
     let transcript = create_transcript(domain);
-    let (evaluation, proof) = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
+    let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
         &point,
         sigma,
         &prover_setup,
         transcript,
     );
+    let evaluation = polynomial.evaluate(&point);
     let eval_time = eval_start.elapsed();
     println!("Evaluate and prove time: {:?}", eval_time);
 
