@@ -205,6 +205,7 @@ pub fn evaluate<
     P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + ?Sized + Sync,
 >(
     polynomial: &P,
+    row_commitments: Option<Vec<E::G1>>,
     point: &[<E::G1 as Group>::Scalar],
     sigma: usize,
     prover_setup: &ProverSetup<E>,
@@ -217,7 +218,14 @@ where
     <E::G1 as Group>::Scalar: Field + Clone,
 {
     // Create the evaluation proof
-    create_evaluation_proof::<E, T, M1, M2, P>(transcript, polynomial, point, sigma, prover_setup)
+    create_evaluation_proof::<E, T, M1, M2, P>(
+        transcript,
+        polynomial,
+        row_commitments,
+        point,
+        sigma,
+        prover_setup,
+    )
 }
 
 /// Verify an evaluation proof

@@ -71,6 +71,7 @@ fn test_soundness_tamper_vmv_message_c() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -147,6 +148,7 @@ fn test_soundness_tamper_vmv_message_d2() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -223,6 +225,7 @@ fn test_soundness_tamper_vmv_message_e1() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -299,6 +302,7 @@ fn test_soundness_wrong_commitment() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -372,6 +376,7 @@ fn test_soundness_wrong_evaluation() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -442,6 +447,7 @@ fn test_soundness_wrong_evaluation_point() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -519,6 +525,7 @@ fn test_soundness_commitment_evaluation_mismatch() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -602,6 +609,7 @@ fn test_soundness_wrong_batching_factors() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -672,6 +680,7 @@ fn test_soundness_tamper_proof_structure() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -749,6 +758,7 @@ fn test_soundness_offset_manipulation() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -840,6 +850,7 @@ fn test_soundness_different_polynomial_degree() {
     >(
         transcript,
         &StandardPolynomial::new(&a_wrong),
+        None,
         &b_points[..nu - 1],
         sigma - 1,
         &prover_setup,
@@ -907,6 +918,7 @@ fn test_soundness_all_vmv_messages_tampered() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -990,6 +1002,7 @@ fn test_soundness_relationship_attack() {
     >(
         transcript,
         &StandardPolynomial::new(&a),
+        None,
         &b_points,
         sigma,
         &prover_setup,
@@ -1006,6 +1019,7 @@ fn test_soundness_relationship_attack() {
     >(
         transcript2,
         &StandardPolynomial::new(&a2),
+        None,
         &b_points,
         sigma,
         &prover_setup,

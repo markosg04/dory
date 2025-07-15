@@ -71,6 +71,7 @@ fn test_pcs_api_workflow() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,

@@ -86,7 +86,14 @@ fn test_evaluation_proof_sigma_2() {
         OptimizedMsmG1,
         OptimizedMsmG2,
         _,
-    >(transcript, &polynomial, &b_points, sigma, &prover_setup);
+    >(
+        transcript,
+        &polynomial,
+        None,
+        &b_points,
+        sigma,
+        &prover_setup,
+    );
 
     let proof_time = proof_start.elapsed();
     println!("Proof generated in: {:?}", proof_time);
@@ -229,7 +236,14 @@ fn test_evaluation_proof_verification_should_fail() {
         OptimizedMsmG1,
         OptimizedMsmG2,
         _,
-    >(transcript, &polynomial, &b_points, sigma, &prover_setup);
+    >(
+        transcript,
+        &polynomial,
+        None,
+        &b_points,
+        sigma,
+        &prover_setup,
+    );
 
     let proof_time = proof_start.elapsed();
     println!("Proof generated in: {:?}", proof_time);
@@ -344,7 +358,14 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
         OptimizedMsmG1,
         OptimizedMsmG2,
         _,
-    >(transcript, &polynomial, &b_points, sigma, &prover_setup);
+    >(
+        transcript,
+        &polynomial,
+        None,
+        &b_points,
+        sigma,
+        &prover_setup,
+    );
 
     let proof_time = proof_start.elapsed();
     println!("Proof generated in: {:?}", proof_time);

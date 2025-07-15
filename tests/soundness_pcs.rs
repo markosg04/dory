@@ -58,6 +58,7 @@ fn test_soundness_wrong_evaluation() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -103,6 +104,7 @@ fn test_soundness_wrong_commitment() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -151,6 +153,7 @@ fn test_soundness_wrong_evaluation_point() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -216,6 +219,7 @@ fn test_soundness_binding_property() {
     let transcript = create_transcript(domain);
     let proof1 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs1),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -268,6 +272,7 @@ fn test_soundness_polynomial_mismatch() {
     let transcript = create_transcript(domain);
     let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs2),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -314,6 +319,7 @@ fn test_soundness_offset_manipulation() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -360,6 +366,7 @@ fn test_soundness_zero_polynomial() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&zero_coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -416,6 +423,7 @@ fn test_soundness_constant_polynomial() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -473,6 +481,7 @@ fn test_soundness_completeness_multiple_points() {
         let polynomial = StandardPolynomial::new(&coeffs);
         let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
             &polynomial,
+            None,
             &point,
             sigma,
             &prover_setup,
@@ -524,6 +533,7 @@ fn test_soundness_cross_polynomial_attack() {
     let transcript1 = create_transcript(domain);
     let proof1 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs1),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -534,6 +544,7 @@ fn test_soundness_cross_polynomial_attack() {
     let transcript2 = create_transcript(domain);
     let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs2),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -613,6 +624,7 @@ fn test_soundness_batch_verification() {
         let transcript = create_transcript(domain);
         let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
             &StandardPolynomial::new(&coeffs_batch[0]),
+            None,
             &point,
             sigma,
             &prover_setup,
@@ -664,6 +676,7 @@ fn test_soundness_sparse_polynomial() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&sparse_coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -718,6 +731,7 @@ fn test_soundness_commitment_consistency() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -740,6 +754,7 @@ fn test_soundness_commitment_consistency() {
     let transcript2 = create_transcript(domain);
     let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -785,6 +800,7 @@ fn test_soundness_degree_bound() {
     let transcript = create_transcript(domain);
     let proof = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&max_degree_coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,
@@ -808,6 +824,7 @@ fn test_soundness_degree_bound() {
     let transcript2 = create_transcript(domain);
     let proof2 = evaluate::<ArkBn254Pairing, _, OptimizedMsmG1, OptimizedMsmG2, _>(
         &StandardPolynomial::new(&max_degree_coeffs),
+        None,
         &point,
         sigma,
         &prover_setup,

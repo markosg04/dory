@@ -114,6 +114,7 @@ pub fn create_evaluation_proof<
 >(
     initial_transcript: T, // DoryProofBuilder takes ownership of the transcript
     polynomial: &P,
+    row_commitments: Option<Vec<E::G1>>,
     point: &[<E::G1 as Group>::Scalar],
     sigma: usize,
     prover_setup: &ProverSetup<E>,
@@ -129,7 +130,12 @@ where
     // println!("nu length: {:?}", nu); -> useful for debug
 
     // 2. Compute row commits (T` in the paper?)
-    let t_vec_prime = commit_to_rows::<E, M1, P>(polynomial, sigma, nu, prover_setup);
+    let t_vec_prime = row_commitments.unwrap_or(commit_to_rows::<E, M1, P>(
+        polynomial,
+        sigma,
+        nu,
+        prover_setup,
+    ));
 
     // 3. Build VMV prover state
     let vmv_state = build_vmv_prover_state::<E, P>(polynomial, point, t_vec_prime, sigma, nu);
