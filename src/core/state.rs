@@ -233,7 +233,8 @@ where
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
     /// Constructor
-    #[must_use] pub fn new(
+    #[must_use]
+    pub fn new(
         v1: Vec<E::G1>,
         v2: Vec<E::G2>,
         s1: Vec<<E::G1 as Group>::Scalar>,
