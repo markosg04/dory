@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// The first prover message in the Dory-Reduce portion (Section 3.2) of the Dory protocol.
 ///
 /// This consists of $D_{1L}$, $D_{1R}$, $D_{2L}$, $D_{2R}$, $E_{1\beta}$, and $E_{2\beta}$.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct FirstReduceMessage<G1, G2, GT> {
     /// $D_{1L}$
     pub d1_left: GT,
@@ -23,7 +23,7 @@ pub struct FirstReduceMessage<G1, G2, GT> {
 ///
 /// The challenge, $\beta$, is a random scalar. Additionally, $\beta$ must be non-zero because
 /// the protocol uses $\beta^{-1}$, which we also include here.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct FirstReduceChallenge<Scalar> {
     /// $\beta$
     pub beta: Scalar,
@@ -34,7 +34,7 @@ pub struct FirstReduceChallenge<Scalar> {
 /// The second prover message in the Dory-Reduce portion (Section 3.2) of the Dory protocol.
 ///
 /// This consists of $C_+$, $C_-$, $E_{1+}$, $E_{1-}$, $E_{2+}$, and $E_{2-}$.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecondReduceMessage<G1, G2, GT> {
     /// $C_+$
     pub c_plus: GT,
@@ -54,7 +54,7 @@ pub struct SecondReduceMessage<G1, G2, GT> {
 ///
 /// The challenge, $\alpha$, is a random scalar. Additionally, $\alpha$ must be non-zero because
 /// the protocol uses $\alpha^{-1}$, which we also include here.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct SecondReduceChallenge<Scalar> {
     /// $\alpha$
     pub alpha: Scalar,
@@ -66,7 +66,7 @@ pub struct SecondReduceChallenge<Scalar> {
 ///
 /// The challenge, $\gamma$, is a random scalar. Additionally, $\gamma$ must be non-zero because
 /// the protocol uses $\gamma^{-1}$, which we also include here.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct FoldScalarsChallenge<Scalar> {
     /// $\gamma$
     pub gamma: Scalar,
@@ -77,7 +77,7 @@ pub struct FoldScalarsChallenge<Scalar> {
 /// The prover message in the Scalar-Product portion (Section 3.1) of the Dory protocol.
 ///
 /// This consists of $E_1$ and $E_2$.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ScalarProductMessage<G1, G2> {
     /// $E_1$
     pub e1: G1,
