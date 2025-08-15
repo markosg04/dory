@@ -1,12 +1,9 @@
-#![allow(missing_docs)]
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
-use ark_std::rand::RngCore;
 use std::fmt::Debug;
 
-/// --------- field ----------------------------------------------------------
-pub trait Field:
-    Sized + Clone + Copy + PartialEq + Send + Sync + CanonicalSerialize + CanonicalDeserialize + Valid
-{
+use rand::Rng;
+
+/// Field elements F_p
+pub trait Field: Sized + Clone + Copy + PartialEq + Send + Sync {
     fn zero() -> Self;
     fn one() -> Self;
     fn is_zero(&self) -> bool;
@@ -16,16 +13,14 @@ pub trait Field:
     fn mul(&self, rhs: &Self) -> Self;
     fn inv(&self) -> Option<Self>;
 
-    fn random<R: RngCore>(rng: &mut R) -> Self;
+    fn random<R: Rng>(rng: &mut R) -> Self;
 
     fn from_u64(val: u64) -> Self;
     fn from_i64(val: i64) -> Self;
 }
 
-/// --------- group ----------------------------------------------------------
-pub trait Group:
-    Sized + Clone + PartialEq + Send + Sync + CanonicalSerialize + CanonicalDeserialize + Valid
-{
+/// Group elements G1 / G2 / GT
+pub trait Group: Sized + Clone + PartialEq + Send + Sync + Debug {
     type Scalar: Field;
 
     fn identity() -> Self;
@@ -33,14 +28,14 @@ pub trait Group:
     fn neg(&self) -> Self;
     fn scale(&self, k: &Self::Scalar) -> Self;
 
-    fn random<R: RngCore>(rng: &mut R) -> Self;
+    fn random<R>(rng: &mut R) -> Self;
 }
 
-/// -------------------------------- pairing ----------------------------------
+/// Pairing group G1, G2, GT
 pub trait Pairing: Sized + Send + Sync {
-    type G1: Group + Debug;
-    type G2: Group + Debug;
-    type GT: Group + Debug;
+    type G1: Group;
+    type G2: Group;
+    type GT: Group;
 
     /// e : G1 × G2 → GT
     fn pair(p: &Self::G1, q: &Self::G2) -> Self::GT;

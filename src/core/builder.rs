@@ -1,21 +1,17 @@
 //! Dory follows an interactive model. Hence, a "proof" consists of some messages
 //! between P and V. We use Prover and Verifier "builders" to manage these messages
 //! and the fiat-shamir challenges throughout the implementation.
-use crate::transcript::Transcript;
 use std::marker::PhantomData;
 
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-
-use crate::{
-    arithmetic::{Field, Group},
-    messages::{
-        FirstReduceChallenge, FirstReduceMessage, FoldScalarsChallenge, ScalarProductChallenge,
-        ScalarProductMessage, SecondReduceChallenge, SecondReduceMessage, VMVMessage,
-    },
+use crate::arithmetic::{Field, Group};
+use crate::messages::{
+    FirstReduceChallenge, FirstReduceMessage, FoldScalarsChallenge, ScalarProductChallenge,
+    ScalarProductMessage, SecondReduceChallenge, SecondReduceMessage, VMVMessage,
 };
+use crate::transcript::Transcript;
 
 /// A serializable proof struct that contains all the messages exchanged
-#[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
+#[derive(Clone, Debug, Default)]
 pub struct DoryProof<G1, G2, GT>
 where
     G1: Group,

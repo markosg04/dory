@@ -11,5 +11,5 @@ pub mod primitives;
 
 // Re-export commonly used items at the crate root
 pub use core::*;
-pub use primitives::arithmetic;
-pub use primitives::transcript;
+
+pub use primitives::{arithmetic, transcript};

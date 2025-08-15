@@ -1,13 +1,10 @@
 //! Defines the structures which manage state during interactive execution of the prover and verifier
-use crate::{
-    arithmetic::{Field, Group, MultiScalarMul, Pairing},
-    messages::{
-        FirstReduceChallenge, FirstReduceMessage, FoldScalarsChallenge, ScalarProductMessage,
-        SecondReduceChallenge, SecondReduceMessage,
-    },
-};
-
 use super::ScalarProductChallenge;
+use crate::arithmetic::{Field, Group, MultiScalarMul, Pairing};
+use crate::messages::{
+    FirstReduceChallenge, FirstReduceMessage, FoldScalarsChallenge, ScalarProductMessage,
+    SecondReduceChallenge, SecondReduceMessage,
+};
 
 /// Trait for the state and computation and state of the Dory protocol.
 ///
@@ -207,8 +204,7 @@ pub trait VerifierState {
     ) -> bool;
 }
 
-/// --------- Concrete ProverState and VerifierState ---------------------
-
+/// The state of Prover for interactive protocol
 pub struct DoryProverState<E: Pairing>
 where
     E::G1: Group,
@@ -265,11 +261,6 @@ where
     /// The commitment to s2: <s1,v2>.
     pub e_2: E::G2,
 
-    /// Tensors used for VMV (only for PCS protocol)
-    pub s1_tensor: Option<Vec<<E::G1 as Group>::Scalar>>,
-    /// Tensors used for VMV (only for PCS protocol)
-    pub s2_tensor: Option<Vec<<E::G1 as Group>::Scalar>>,
-
     /// Current round number. Length of v1 and v2 should be 2^nu.
     pub nu: usize,
 }
@@ -286,31 +277,18 @@ where
             d_2,
             e_1,
             e_2,
-            s1_tensor: None, // not used in non-pcs context
-            s2_tensor: None, // not used in non-pcs context
             nu,
         }
     }
 
     /// Constructor
-    pub fn new_with_s(
-        c: E::GT,
-        d_1: E::GT,
-        d_2: E::GT,
-        e_1: E::G1,
-        e_2: E::G2,
-        s1: Vec<<E::G1 as Group>::Scalar>,
-        s2: Vec<<E::G1 as Group>::Scalar>,
-        nu: usize,
-    ) -> Self {
+    pub fn new_with_s(c: E::GT, d_1: E::GT, d_2: E::GT, e_1: E::G1, e_2: E::G2, nu: usize) -> Self {
         Self {
             c,
             d_1,
             d_2,
             e_1,
             e_2,
-            s1_tensor: Some(s1),
-            s2_tensor: Some(s2),
             nu,
         }
     }

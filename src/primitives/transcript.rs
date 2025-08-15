@@ -1,6 +1,4 @@
-//! Transcript trait for fiat shamir
 use crate::arithmetic::Field;
-use ark_serialize::CanonicalSerialize;
 
 /// Transcript to standardize fiat shamir for generic concrete transcripts
 pub trait Transcript {
@@ -30,16 +28,16 @@ pub trait Transcript {
     /// # Arguments
     ///
     /// * `label` - A domain-separation label for the group element.
-    /// * `g` - The group element to append. It must implement `CanonicalSerialize`.
-    fn append_group<G: CanonicalSerialize>(&mut self, label: &[u8], g: &G);
+    /// * `g` - The group element to append.
+    fn append_group<G>(&mut self, label: &[u8], g: &G);
 
     /// Appends any `serde`-serializable element to the transcript.
     ///
     /// # Arguments
     ///
     /// * `label` - A domain-separation label for the element.
-    /// * `s` - The element to append. It must implement `serde::Serialize`.
-    fn append_serde<S: serde::Serialize>(&mut self, label: &[u8], s: &S);
+    /// * `s` - The element to append.
+    fn append_serde<S>(&mut self, label: &[u8], s: &S);
 
     /// Produces a challenge derived from the transcript
     /// The scalar should be non-zero
