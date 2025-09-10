@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 use crate::poly::Polynomial;
 use crate::{arithmetic::*, compute_polynomial_commitment, multilinear_lagrange_vec, ProverSetup};
+use ark_bn254::Fq;
 use ark_bn254::{Bn254, Fq12, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{
     bn::{G1Prepared as BnG1Prepared, G2Prepared as BnG2Prepared},
@@ -11,13 +12,15 @@ use ark_ff::{Field as ArkField, One, PrimeField, UniformRand, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError};
 use ark_serialize::{Read, Valid, Validate, Write};
 use ark_std::rand::{rngs::StdRng, RngCore, SeedableRng};
-use rayon::prelude::*;
-
 use jolt_optimizations::{
     dory_g1::precompute_g1_generators_windowed2_signed, vector_add_scalar_mul_g1_windowed2_signed,
     vector_add_scalar_mul_g2_windowed2_signed, PrecomputedShamir4Data, Windowed2Signed2Data,
     Windowed2Signed4Data,
 };
+use rayon::prelude::*;
+
+#[cfg(feature = "recursion")]
+use jolt_optimizations::{pow_with_steps_le, ExponentiationSteps};
 
 /// Create a fixed RNG for deterministic tests
 pub fn test_rng() -> StdRng {
@@ -75,6 +78,52 @@ impl Field for Fr {
     }
 }
 
+impl Field for Fq {
+    fn zero() -> Self {
+        Zero::zero()
+    }
+    fn one() -> Self {
+        One::one()
+    }
+    fn is_zero(&self) -> bool {
+        Zero::is_zero(self)
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        *self + *rhs
+    }
+    fn sub(&self, rhs: &Self) -> Self {
+        *self - *rhs
+    }
+    fn mul(&self, rhs: &Self) -> Self {
+        *self * *rhs
+    }
+    fn inv(&self) -> Option<Self> {
+        if Zero::is_zero(self) {
+            None
+        } else {
+            Some(self.inverse().unwrap())
+        }
+    }
+    fn random<R: RngCore>(_rng: &mut R) -> Self {
+        // We use our own fixed RNG for testing
+        let mut rng = test_rng();
+        Fq::rand(&mut rng)
+    }
+
+    fn from_u64(val: u64) -> Self {
+        Fq::from(val)
+    }
+
+    fn from_i64(val: i64) -> Self {
+        if val >= 0 {
+            Fq::from(val as u64)
+        } else {
+            -Fq::from((-val) as u64)
+        }
+    }
+}
+
 /* --------- Group trait for G1Affine -------------------------------- */
 impl Group for G1Affine {
     type Scalar = Fr;
@@ -98,6 +147,11 @@ impl Group for G1Affine {
     fn random<R: RngCore>(_rng: &mut R) -> Self {
         let mut rng = test_rng();
         G1Projective::rand(&mut rng).into_affine()
+    }
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, _k: &Self::Scalar) -> (Self, ExponentiationSteps) {
+        panic!("scale_with_steps not implemented for G1Affine - use only for Fq12")
     }
 }
 
@@ -234,11 +288,16 @@ impl Group for G2AffineWrapper {
         let mut rng = test_rng();
         G2AffineWrapper(G2Projective::rand(&mut rng).into_affine())
     }
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, _k: &Self::Scalar) -> (Self, ExponentiationSteps) {
+        panic!("scale_with_steps not implemented for G2AffineWrapper - use only for Fq12")
+    }
 }
 
 /* --------- Group trait for Fq12 (GT) ------------------------------- */
 impl Group for Fq12 {
-    type Scalar = Fr;
+    type Scalar = Fq;
 
     fn identity() -> Self {
         Self::one()
@@ -266,6 +325,12 @@ impl Group for Fq12 {
         // We use our own fixed RNG for testing
         let mut rng = test_rng();
         Self::rand(&mut rng)
+    }
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, k: &Self::Scalar) -> (Self, ExponentiationSteps) {
+        let steps = pow_with_steps_le(*self, *k);
+        (steps.result, steps)
     }
 }
 

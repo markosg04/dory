@@ -15,6 +15,9 @@ use crate::{
     toy_transcript::ToyTranscript,
 };
 
+#[cfg(feature = "recursion")]
+use jolt_optimizations::ExponentiationSteps;
+
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
 pub struct DoryProof<G1, G2, GT>
@@ -31,6 +34,9 @@ where
     pub final_message: Option<ScalarProductMessage<G1, G2>>,
     /// Vector-matrix-vector message (for PCS)
     pub vmv_message: Option<VMVMessage<G1, GT>>,
+    /// GT exponentiation steps for recursion
+    #[cfg(feature = "recursion")]
+    pub gt_exponentiation_steps: Vec<ExponentiationSteps>,
 }
 
 /// Trait that defines the structure of the Dory proof.
@@ -92,6 +98,9 @@ where
 {
     /// First prover message for round i
     pub first_messages: Vec<FirstReduceMessage<G1, G2, GT>>,
+    /// First reduce challenges for each round (beta, beta_inverse)
+    #[cfg(feature = "recursion")]
+    pub first_challenges: Vec<FirstReduceChallenge<Scalar>>,
     /// Second prover message for round i
     pub second_messages: Vec<SecondReduceMessage<G1, G2, GT>>,
     /// Last Scalar product message at end of protocol
@@ -99,6 +108,9 @@ where
 
     /// vector-matrix-vector message, used to transform general dory into PCS
     pub vmv_message: Option<VMVMessage<G1, GT>>,
+    /// GT exponentiation steps for recursion
+    #[cfg(feature = "recursion")]
+    pub gt_exponentiation_steps: Vec<ExponentiationSteps>,
     /// Fiat shamir
     pub transcript: T,
     /// Phantom
@@ -117,9 +129,13 @@ where
     pub fn new(transcript: T) -> Self {
         Self {
             first_messages: Vec::new(),
+            #[cfg(feature = "recursion")]
+            first_challenges: Vec::new(),
             second_messages: Vec::new(),
             final_message: None,
             vmv_message: None,
+            #[cfg(feature = "recursion")]
+            gt_exponentiation_steps: Vec::new(),
             transcript,
             _phantom: PhantomData,
         }
@@ -135,9 +151,13 @@ where
         let transcript = ToyTranscript::new(domain);
         DoryProofBuilder {
             first_messages: Vec::new(),
+            #[cfg(feature = "recursion")]
+            first_challenges: Vec::new(),
             second_messages: Vec::new(),
             final_message: None,
             vmv_message: None,
+            #[cfg(feature = "recursion")]
+            gt_exponentiation_steps: Vec::new(),
             transcript,
             _phantom: PhantomData,
         }
@@ -150,6 +170,8 @@ where
             second_messages: self.second_messages.clone(),
             final_message: self.final_message.clone(),
             vmv_message: self.vmv_message.clone(),
+            #[cfg(feature = "recursion")]
+            gt_exponentiation_steps: self.gt_exponentiation_steps.clone(),
         }
     }
 
@@ -157,9 +179,13 @@ where
     pub fn from_proof(proof: DoryProof<G1, G2, GT>, transcript: T) -> Self {
         Self {
             first_messages: proof.first_messages,
+            #[cfg(feature = "recursion")]
+            first_challenges: Vec::new(), // Challenges are not stored in proof, need to be regenerated
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
+            #[cfg(feature = "recursion")]
+            gt_exponentiation_steps: proof.gt_exponentiation_steps,
             transcript,
             _phantom: PhantomData,
         }
@@ -172,9 +198,13 @@ where
     {
         Self {
             first_messages: proof.first_messages,
+            #[cfg(feature = "recursion")]
+            first_challenges: Vec::new(), // Challenges are not stored in proof, need to be regenerated
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
+            #[cfg(feature = "recursion")]
+            gt_exponentiation_steps: proof.gt_exponentiation_steps,
             transcript: T::default(),
             _phantom: PhantomData,
         }
@@ -212,6 +242,8 @@ where
         let challenge = FirstReduceChallenge { beta, beta_inverse };
 
         self.first_messages.push(message);
+        #[cfg(feature = "recursion")]
+        self.first_challenges.push(challenge.clone());
         (challenge, self)
     }
 
@@ -232,6 +264,33 @@ where
             alpha,
             alpha_inverse,
         };
+
+        #[cfg(feature = "recursion")]
+        {
+            // Simulate the GT scaling operations that happen in the verifier's dory_reduce_verify_update_c
+            // These are: c_plus.scale(&alpha) and c_minus.scale(&alpha_inv)
+            let (_, steps_c_plus) = message.c_plus.scale_with_steps(&alpha);
+            self.gt_exponentiation_steps.push(steps_c_plus);
+
+            let (_, steps_c_minus) = message.c_minus.scale_with_steps(&alpha_inverse);
+            self.gt_exponentiation_steps.push(steps_c_minus);
+
+            // Also simulate operations from dory_reduce_verify_update_ds
+            // We can access the previous first message
+            if let Some(first_msg) = self.first_messages.last() {
+                // d_1l.scale(&alpha)
+                let (_, steps_d1l) = first_msg.d1_left.scale_with_steps(&alpha);
+                self.gt_exponentiation_steps.push(steps_d1l);
+
+                // d_2l.scale(&alpha_inv)
+                let (_, steps_d2l) = first_msg.d2_left.scale_with_steps(&alpha_inverse);
+                self.gt_exponentiation_steps.push(steps_d2l);
+
+                // If we have the beta challenge stored, we can simulate more operations
+                // that involve combined challenges (alpha*beta, etc.)
+                // These would require delta values from setup, which we'll add next
+            }
+        }
 
         self.second_messages.push(message);
         (challenge, self)

@@ -3,6 +3,9 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::rand::RngCore;
 use std::fmt::Debug;
 
+#[cfg(feature = "recursion")]
+use jolt_optimizations::ExponentiationSteps;
+
 /// --------- field ----------------------------------------------------------
 pub trait Field:
     Sized + Clone + Copy + PartialEq + Send + Sync + CanonicalSerialize + CanonicalDeserialize + Valid
@@ -34,6 +37,9 @@ pub trait Group:
     fn scale(&self, k: &Self::Scalar) -> Self;
 
     fn random<R: RngCore>(rng: &mut R) -> Self;
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, k: &Self::Scalar) -> (Self, ExponentiationSteps);
 }
 
 /// -------------------------------- pairing ----------------------------------
