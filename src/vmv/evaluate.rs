@@ -40,7 +40,7 @@ fn eval_vmv_re_prove<
 ) -> (
     DoryProofBuilder<E::G1, E::G2, E::GT, <E::G1 as Group>::Scalar, T>,
     DoryProverState<E>,
-    E::GT,  // Return d1 for use in finalize_for_recursion
+    E::GT, // Return d1 for use in finalize_for_recursion
 )
 where
     E::G1: Group,
@@ -81,7 +81,7 @@ where
     // D₁ = e(⟨T_vec_prime, Γ₂[nu]⟩)
     // This is what the verifier will have as initial d_1
     let d1 = E::multi_pair(
-        &prover_state.v1,  // T_vec_prime
+        &prover_state.v1, // T_vec_prime
         &prover_setup.g2_vec()[..1 << prover_state.nu],
     );
 
@@ -158,7 +158,29 @@ where
 
     // 6. Initial commitments
     let (final_proof_builder, proof_state, initial_d1) =
-        eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec, prover_setup);
+        eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec.clone(), prover_setup);
+
+    // Prepare values for recursion before they're moved
+    #[cfg(feature = "recursion")]
+    let (initial_e1, initial_e2) = {
+        // Get initial e1 from the VMV message (already in builder)
+        let initial_e1 = final_proof_builder.vmv_message.as_ref().unwrap().e1.clone();
+
+        // Compute y = <v_vec, r_vec> which is the polynomial evaluation
+        // This is what the verifier has as vmv_state.y
+        // Note: s1 = r_vec, s2 = l_vec (see vmv_state_to_dory_prover_state)
+        let y = v_vec
+            .iter()
+            .zip(proof_state.s1.iter()) // s1 contains r_vec after conversion
+            .fold(<E::G1 as Group>::Scalar::zero(), |acc, (v, r)| {
+                acc.add(&v.mul(r))
+            });
+
+        // Initial e2 = g_fin.scale(&y) (computed on verifier side)
+        let initial_e2 = prover_setup.g_fin().scale(&y);
+
+        (initial_e1, initial_e2)
+    };
 
     // prove!
     let builder = inner_product_prove::<_, _, _, _, _, _, _, M1, M2>(
@@ -170,7 +192,12 @@ where
 
     // Finalize for recursion if feature is enabled
     #[cfg(feature = "recursion")]
-    let builder = builder.finalize_for_recursion(prover_setup, nu, Some(initial_d1));
+    let mut builder =
+        builder.finalize_for_recursion(prover_setup, nu, Some(initial_d1), initial_e1, initial_e2);
+
+    // Minimize the ExponentiationSteps to reduce proof size
+    #[cfg(feature = "recursion")]
+    builder.minimize_exponentiation_steps();
 
     builder
 }

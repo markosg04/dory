@@ -77,6 +77,16 @@ pub trait ProofBuilder {
         self,
         message: ScalarProductMessage<Self::G1, Self::G2>,
     ) -> Self;
+
+    /// Append a [`ScalarProductMessage`] with s1_final and s2_final for recursion.
+    #[cfg(feature = "recursion")]
+    #[must_use]
+    fn append_scalar_product_message_with_scalars(
+        self,
+        message: ScalarProductMessage<Self::G1, Self::G2>,
+        s1_final: Self::Scalar,
+        s2_final: Self::Scalar,
+    ) -> Self;
     #[must_use]
     /// Append a [`VMVMessage`] to the proof and transcript.
     fn append_vmv_message(self, message: VMVMessage<Self::G1, Self::GT>) -> Self;
@@ -93,10 +103,14 @@ pub trait ProofBuilder {
         _setup: &crate::setup::ProverSetup<E>,
         _initial_nu: usize,
         _initial_d1: Option<Self::GT>,
+        _initial_e1: Self::G1,
+        _initial_e2: Self::G2,
     ) -> Self
     where
-        E: crate::arithmetic::Pairing<GT = Self::GT>,
+        E: crate::arithmetic::Pairing<GT = Self::GT, G1 = Self::G1, G2 = Self::G2>,
         Self::GT: crate::arithmetic::Group + Clone,
+        Self::G1: crate::arithmetic::Group + Clone,
+        Self::G2: crate::arithmetic::Group + Clone,
         Self: Sized,
     {
         // Default implementation just returns self
@@ -142,6 +156,25 @@ where
     pub setup_delta_2l: Vec<GT>,
     #[cfg(feature = "recursion")]
     pub setup_delta_2r: Vec<GT>,
+    /// Store challenges and values needed for final phase GT operations
+    #[cfg(feature = "recursion")]
+    pub fold_scalars_challenge: Option<FoldScalarsChallenge<Scalar>>,
+    #[cfg(feature = "recursion")]
+    pub scalar_product_challenge: Option<ScalarProductChallenge<Scalar>>,
+    #[cfg(feature = "recursion")]
+    pub setup_ht: Option<GT>,
+    #[cfg(feature = "recursion")]
+    pub setup_h1: Option<G1>,
+    #[cfg(feature = "recursion")]
+    pub setup_h2: Option<G2>,
+    #[cfg(feature = "recursion")]
+    pub setup_g1_0: Option<G1>,
+    #[cfg(feature = "recursion")]
+    pub setup_g2_0: Option<G2>,
+    #[cfg(feature = "recursion")]
+    pub s1_final: Option<Scalar>,
+    #[cfg(feature = "recursion")]
+    pub s2_final: Option<Scalar>,
     /// Fiat shamir
     pub transcript: T,
     /// Phantom
@@ -160,8 +193,10 @@ where
     #[cfg(feature = "recursion")]
     pub fn new<E>(transcript: T, setup: &crate::setup::ProverSetup<E>) -> Self
     where
-        E: crate::arithmetic::Pairing<GT = GT>,
+        E: crate::arithmetic::Pairing<GT = GT, G1 = G1, G2 = G2>,
         GT: Clone,
+        G1: Clone,
+        G2: Clone,
     {
         Self {
             first_messages: Vec::new(),
@@ -175,6 +210,15 @@ where
             setup_delta_1r: setup.delta_1r.clone(),
             setup_delta_2l: setup.delta_2l.clone(),
             setup_delta_2r: setup.delta_2r.clone(),
+            fold_scalars_challenge: None,
+            scalar_product_challenge: None,
+            setup_ht: Some(setup.ht().clone()),
+            setup_h1: Some(setup.h1().clone()),
+            setup_h2: Some(setup.h2().clone()),
+            setup_g1_0: Some(setup.g1_vec()[0].clone()),
+            setup_g2_0: Some(setup.g2_vec()[0].clone()),
+            s1_final: None,
+            s2_final: None,
             transcript,
             _phantom: PhantomData,
         }
@@ -201,8 +245,10 @@ where
     ) -> DoryProofBuilder<G1, G2, GT, Scalar, ToyTranscript>
     where
         ToyTranscript: Transcript<Scalar = Scalar>,
-        E: crate::arithmetic::Pairing<GT = GT>,
+        E: crate::arithmetic::Pairing<GT = GT, G1 = G1, G2 = G2>,
         GT: Clone,
+        G1: Clone,
+        G2: Clone,
     {
         let transcript = ToyTranscript::new(domain);
         DoryProofBuilder {
@@ -217,6 +263,15 @@ where
             setup_delta_1r: setup.delta_1r.clone(),
             setup_delta_2l: setup.delta_2l.clone(),
             setup_delta_2r: setup.delta_2r.clone(),
+            fold_scalars_challenge: None,
+            scalar_product_challenge: None,
+            setup_ht: Some(setup.ht().clone()),
+            setup_h1: Some(setup.h1().clone()),
+            setup_h2: Some(setup.h2().clone()),
+            setup_g1_0: Some(setup.g1_vec()[0].clone()),
+            setup_g2_0: Some(setup.g2_vec()[0].clone()),
+            s1_final: None,
+            s2_final: None,
             transcript,
             _phantom: PhantomData,
         }
@@ -274,6 +329,24 @@ where
             setup_delta_2l: Vec::new(),
             #[cfg(feature = "recursion")]
             setup_delta_2r: Vec::new(),
+            #[cfg(feature = "recursion")]
+            fold_scalars_challenge: None,
+            #[cfg(feature = "recursion")]
+            scalar_product_challenge: None,
+            #[cfg(feature = "recursion")]
+            setup_ht: None,
+            #[cfg(feature = "recursion")]
+            setup_h1: None,
+            #[cfg(feature = "recursion")]
+            setup_h2: None,
+            #[cfg(feature = "recursion")]
+            setup_g1_0: None,
+            #[cfg(feature = "recursion")]
+            setup_g2_0: None,
+            #[cfg(feature = "recursion")]
+            s1_final: None,
+            #[cfg(feature = "recursion")]
+            s2_final: None,
             transcript,
             _phantom: PhantomData,
         }
@@ -303,6 +376,24 @@ where
             setup_delta_2l: Vec::new(),
             #[cfg(feature = "recursion")]
             setup_delta_2r: Vec::new(),
+            #[cfg(feature = "recursion")]
+            fold_scalars_challenge: None,
+            #[cfg(feature = "recursion")]
+            scalar_product_challenge: None,
+            #[cfg(feature = "recursion")]
+            setup_ht: None,
+            #[cfg(feature = "recursion")]
+            setup_h1: None,
+            #[cfg(feature = "recursion")]
+            setup_h2: None,
+            #[cfg(feature = "recursion")]
+            setup_g1_0: None,
+            #[cfg(feature = "recursion")]
+            setup_g2_0: None,
+            #[cfg(feature = "recursion")]
+            s1_final: None,
+            #[cfg(feature = "recursion")]
+            s2_final: None,
             transcript: T::default(),
             _phantom: PhantomData,
         }
@@ -383,6 +474,21 @@ where
         self
     }
 
+    #[cfg(feature = "recursion")]
+    fn append_scalar_product_message_with_scalars(
+        mut self,
+        message: ScalarProductMessage<Self::G1, Self::G2>,
+        s1_final: Self::Scalar,
+        s2_final: Self::Scalar,
+    ) -> Self {
+        self.transcript.append_group(b"e1", &message.e1);
+        self.transcript.append_group(b"e2", &message.e2);
+        self.s1_final = Some(s1_final);
+        self.s2_final = Some(s2_final);
+        self.final_message = Some(message);
+        self
+    }
+
     fn append_vmv_message(mut self, message: VMVMessage<Self::G1, Self::GT>) -> Self {
         self.transcript.append_group(b"c_eval_vmv", &message.c);
         self.transcript.append_group(b"d2_eval_vmv", &message.d2);
@@ -398,6 +504,10 @@ where
             gamma,
             gamma_inverse,
         };
+        #[cfg(feature = "recursion")]
+        {
+            self.fold_scalars_challenge = Some(challenge.clone());
+        }
         (challenge, self)
     }
 
@@ -408,6 +518,10 @@ where
             d,
             d_inverse: d_inv,
         };
+        #[cfg(feature = "recursion")]
+        {
+            self.scalar_product_challenge = Some(challenge.clone());
+        }
         (challenge, self)
     }
 
@@ -417,14 +531,20 @@ where
         setup: &crate::setup::ProverSetup<E>,
         initial_nu: usize,
         initial_d1: Option<Self::GT>,
+        initial_e1: Self::G1,
+        initial_e2: Self::G2,
     ) -> Self
     where
-        E: crate::arithmetic::Pairing<GT = Self::GT>,
+        E: crate::arithmetic::Pairing<GT = Self::GT, G1 = Self::G1, G2 = Self::G2>,
         Self::GT: crate::arithmetic::Group + Clone,
+        Self::G1: crate::arithmetic::Group + Clone,
+        Self::G2: crate::arithmetic::Group + Clone,
     {
         // Call the actual implementation method on DoryProofBuilder
         // This is the non-trait method defined below
-        DoryProofBuilder::finalize_for_recursion(&mut self, setup, initial_nu, initial_d1);
+        DoryProofBuilder::finalize_for_recursion(
+            &mut self, setup, initial_nu, initial_d1, initial_e1, initial_e2,
+        );
         self
     }
 }
@@ -681,9 +801,13 @@ where
         setup: &crate::setup::ProverSetup<E>,
         initial_nu: usize,
         initial_d1: Option<GT>,
+        initial_e1: G1,
+        initial_e2: G2,
     ) where
-        E: crate::arithmetic::Pairing<GT = GT>,
+        E: crate::arithmetic::Pairing<GT = GT, G1 = G1, G2 = G2>,
         GT: crate::arithmetic::Group + Clone,
+        G1: crate::arithmetic::Group + Clone,
+        G2: crate::arithmetic::Group + Clone,
     {
         // Clear any existing steps
         self.gt_exponentiation_steps.clear();
@@ -709,9 +833,11 @@ where
             initial_nu, num_rounds
         );
 
-        // Initialize d_1 and d_2 tracking
+        // Initialize d_1, d_2, e_1, and e_2 tracking
         let mut d_1 = initial_d1;
         let mut d_2 = self.vmv_message.as_ref().map(|vmv| vmv.d2.clone());
+        let mut e_1 = Some(initial_e1);
+        let mut e_2 = Some(initial_e2);
 
         // Process each round in the exact order the verifier will
         for round_idx in 0..num_rounds {
@@ -811,12 +937,130 @@ where
                 *d2_val = new_d2;
             }
 
+            // Update e_1 and e_2 for next round (simulate verifier's update)
+            // E_1' <- E_1 + β·E_1beta + α·E_1plus + α⁻¹·E_1minus
+            if let (Some(e1_val), Some(e2_val)) = (&e_1, &e_2) {
+                let mut new_e1 = e1_val.clone();
+                new_e1 = new_e1.add(&first_msg.e1_beta.scale(&beta));
+                new_e1 = new_e1.add(&second_msg.e1_plus.scale(&alpha));
+                new_e1 = new_e1.add(&second_msg.e1_minus.scale(&alpha_inv));
+                e_1 = Some(new_e1);
+
+                // E_2' <- E_2 + β⁻¹·E_2beta + α·E_2plus + α⁻¹·E_2minus
+                let mut new_e2 = e2_val.clone();
+                new_e2 = new_e2.add(&first_msg.e2_beta.scale(&beta_inv));
+                new_e2 = new_e2.add(&second_msg.e2_plus.scale(&alpha));
+                new_e2 = new_e2.add(&second_msg.e2_minus.scale(&alpha_inv));
+                e_2 = Some(new_e2);
+            }
+
             // Decrement nu as the verifier does after each round
             nu = nu.saturating_sub(1);
         }
 
+        // After all rounds are complete (nu = 0), compute operations for apply_fold_scalars and verify_final_pairing
+        // These operations happen after the rounds, during the final verification phase
+
+        if let (
+            Some(gamma_challenge),
+            Some(d_challenge),
+            Some(s1_final),
+            Some(s2_final),
+            Some(scalar_msg),
+            Some(ht),
+        ) = (
+            &self.fold_scalars_challenge,
+            &self.scalar_product_challenge,
+            &self.s1_final,
+            &self.s2_final,
+            &self.final_message,
+            &self.setup_ht,
+        ) {
+            let gamma = gamma_challenge.gamma.clone();
+            let gamma_inv = gamma_challenge.gamma_inverse.clone();
+            let d = d_challenge.d.clone();
+            let d_inv = d_challenge.d_inverse.clone();
+
+            // Operations from apply_fold_scalars:
+
+            // 1. ht.scale(&s1_final.mul(&s2_final))
+            let s_product = s1_final.mul(&s2_final);
+            let (_, steps) = ht.scale_with_steps(&s_product);
+            self.gt_exponentiation_steps.push(steps);
+
+            // 2. pairing(h1, e2).scale(&gamma) - use tracked e_2
+            if let (Some(h1), Some(h2), Some(e1_val), Some(e2_val)) =
+                (&self.setup_h1, &self.setup_h2, &e_1, &e_2)
+            {
+                let pairing_h1_e2 = E::pair(h1, e2_val);
+                let (_, steps) = pairing_h1_e2.scale_with_steps(&gamma);
+                self.gt_exponentiation_steps.push(steps);
+
+                // 3. pairing(e1, h2).scale(&gamma_inv) - use tracked e_1
+                let pairing_e1_h2 = E::pair(e1_val, h2);
+                let (_, steps) = pairing_e1_h2.scale_with_steps(&gamma_inv);
+                self.gt_exponentiation_steps.push(steps);
+            }
+
+            // Operations from verify_final_pairing:
+            // IMPORTANT: We need the d_1 and d_2 AFTER apply_fold_scalars updates them
+            // apply_fold_scalars adds terms to d_1 and d_2:
+            // d_1 = d_1 + e(H₁, g2_0 * s1_final * gamma)
+            // d_2 = d_2 + e(g1_0 * s2_final * gamma_inv, H₂)
+
+            if let (Some(mut final_d1), Some(mut final_d2)) = (d_1, d_2) {
+                // Compute the updates that apply_fold_scalars makes to d_1 and d_2
+                if let (Some(h1), Some(h2), Some(g1_0), Some(g2_0)) = (
+                    &self.setup_h1,
+                    &self.setup_h2,
+                    &self.setup_g1_0,
+                    &self.setup_g2_0,
+                ) {
+                    // Update d_1: add e(H₁, g2_0 * s1_final * gamma)
+                    let scalar_for_g2_in_d1 = s1_final.mul(&gamma);
+                    let g2_0_scaled = g2_0.scale(&scalar_for_g2_in_d1);
+                    let pairing_h1_g2 = E::pair(h1, &g2_0_scaled);
+                    final_d1 = final_d1.add(&pairing_h1_g2);
+
+                    // Update d_2: add e(g1_0 * s2_final * gamma_inv, H₂)
+                    let scalar_for_g1_in_d2 = s2_final.mul(&gamma_inv);
+                    let g1_0_scaled = g1_0.scale(&scalar_for_g1_in_d2);
+                    let pairing_g1_h2 = E::pair(&g1_0_scaled, h2);
+                    final_d2 = final_d2.add(&pairing_g1_h2);
+                }
+
+                // Operations from verify_final_pairing on the UPDATED d_1 and d_2:
+                // 4. d_2.scale(&d)
+                // 5. d_1.scale(&d_inv)
+                let (_, steps) = final_d2.scale_with_steps(&d);
+                self.gt_exponentiation_steps.push(steps);
+
+                let (_, steps) = final_d1.scale_with_steps(&d_inv);
+                self.gt_exponentiation_steps.push(steps);
+            }
+        }
+
         println!(
             "DEBUG: finalize_for_recursion complete, tracked {} GT operations",
+            self.gt_exponentiation_steps.len()
+        );
+    }
+
+    /// Minimize the size of ExponentiationSteps by clearing all fields except result
+    /// This significantly reduces proof size for deserialization
+    /// The verifier only needs the result field, not the intermediate steps
+    #[cfg(feature = "recursion")]
+    pub fn minimize_exponentiation_steps(&mut self) {
+        for steps in &mut self.gt_exponentiation_steps {
+            // Clear the heavy fields while keeping result
+            steps.base = Default::default(); // Sets to zero/identity
+            steps.exponent = Default::default(); // Sets to zero
+            steps.steps.clear(); // Remove all intermediate steps
+                                 // Keep steps.result unchanged - it's needed by verifier
+        }
+
+        println!(
+            "Minimized {} ExponentiationSteps (cleared base, exponent, and steps fields)",
             self.gt_exponentiation_steps.len()
         );
     }

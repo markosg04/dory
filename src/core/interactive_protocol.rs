@@ -38,7 +38,10 @@ where
     #[cfg(feature = "recursion")]
     {
         if let Some(ops) = recursion_ops {
-            // println!("DEBUG: scale_gt_with_offload - ops queue has {} items", ops.len() + 1);
+            println!(
+                "DEBUG: scale_gt_with_offload - ops queue has {} items",
+                ops.len() + 1
+            );
             if let Some(step) = ops.pop_front() {
                 // The step.result is always Fq12, but E::GT might be a wrapper type
                 // We need to handle this correctly based on the actual type
@@ -326,7 +329,11 @@ where
         self,
         setup: &Self::Setup,
         chall: FoldScalarsChallenge<Self::Scalar>,
-    ) -> ScalarProductMessage<Self::G1, Self::G2>
+    ) -> (
+        ScalarProductMessage<Self::G1, Self::G2>,
+        Self::Scalar,
+        Self::Scalar,
+    )
     where
         M1: MultiScalarMul<Self::G1>,
         M2: MultiScalarMul<Self::G2>,
@@ -339,6 +346,10 @@ where
 
         let (gamma, gamma_inv) = (chall.gamma, chall.gamma_inverse);
 
+        // Save s1[0] and s2[0] before consuming self
+        let s1_final = self.s1[0].clone();
+        let s2_final = self.s2[0].clone();
+
         // Apply `fold-scalars`` transformation to the vectors:
         // v1' = v1 + γ * s1 * H1
         // v2' = v2 + γ^(-1) * s2 * H2
@@ -349,10 +360,12 @@ where
         let gamma_inv_s2_product = gamma_inv.mul(&self.s2[0]);
         let e2 = self.v2[0].add(&setup.h2().scale(&gamma_inv_s2_product));
 
-        ScalarProductMessage {
+        let message = ScalarProductMessage {
             e1: e1.clone(),
             e2: e2.clone(),
-        }
+        };
+
+        (message, s1_final, s2_final)
     }
 }
 
@@ -653,16 +666,31 @@ where
 
         let mut new_c = self.c.clone();
 
-        // Term 1: s1_final * s2_final * setup.ht
-        new_c = new_c.add(&setup.ht.scale(&s1_final.mul(&s2_final)));
+        // Term 1: s1_final * s2_final * setup.ht (offloaded when recursion_ops available)
+        let s_product = s1_final.mul(&s2_final);
+        #[cfg(feature = "recursion")]
+        let ht_scaled = scale_gt_with_offload::<E>(&setup.ht, &s_product, &mut self.recursion_ops);
+        #[cfg(not(feature = "recursion"))]
+        let ht_scaled = setup.ht.scale(&s_product);
+        new_c = new_c.add(&ht_scaled);
 
-        // Term 2: γ * e(setup.h1, self.e_2)
+        // Term 2: γ * e(setup.h1, self.e_2) (offloaded when recursion_ops available)
         let pairing_h1_e2 = E::pair(&setup.h1, &self.e_2);
-        new_c = new_c.add(&pairing_h1_e2.scale(&gamma));
+        #[cfg(feature = "recursion")]
+        let pairing_h1_e2_scaled =
+            scale_gt_with_offload::<E>(&pairing_h1_e2, &gamma, &mut self.recursion_ops);
+        #[cfg(not(feature = "recursion"))]
+        let pairing_h1_e2_scaled = pairing_h1_e2.scale(&gamma);
+        new_c = new_c.add(&pairing_h1_e2_scaled);
 
-        // Term 3: γ⁻¹ * e(self.e_1, setup.h2)
+        // Term 3: γ⁻¹ * e(self.e_1, setup.h2) (offloaded when recursion_ops available)
         let pairing_e1_h2 = E::pair(&self.e_1, &setup.h2);
-        new_c = new_c.add(&pairing_e1_h2.scale(&gamma_inv));
+        #[cfg(feature = "recursion")]
+        let pairing_e1_h2_scaled =
+            scale_gt_with_offload::<E>(&pairing_e1_h2, &gamma_inv, &mut self.recursion_ops);
+        #[cfg(not(feature = "recursion"))]
+        let pairing_e1_h2_scaled = pairing_e1_h2.scale(&gamma_inv);
+        new_c = new_c.add(&pairing_e1_h2_scaled);
 
         self.c = new_c;
 
@@ -697,7 +725,7 @@ where
     /// pairing(E_1 + Gamma_1_0 * d, E_2 + Gamma_2_0 * d_inv) ==
     /// (C + chi[0] + D_2 * d + D_1 * d_inv)
     fn verify_final_pairing(
-        &self,
+        &mut self,
         setup: &Self::Setup,
         message: &ScalarProductMessage<Self::G1, Self::G2>,
         d_pair: ScalarProductChallenge<Self::Scalar>, // This should be a fresh challenge 'd', not gamma
@@ -720,11 +748,19 @@ where
         // Add chi[0]
         right_side = right_side.add(&setup.chi[0]);
 
-        // Add D_2 * gamma
-        right_side = right_side.add(&self.d_2.scale(&d));
+        // Add D_2 * d (offloaded when recursion_ops available)
+        #[cfg(feature = "recursion")]
+        let d2_scaled = scale_gt_with_offload::<E>(&self.d_2, &d, &mut self.recursion_ops);
+        #[cfg(not(feature = "recursion"))]
+        let d2_scaled = self.d_2.scale(&d);
+        right_side = right_side.add(&d2_scaled);
 
-        // Add D_1 * gamma_inv
-        right_side = right_side.add(&self.d_1.scale(&d_inverse));
+        // Add D_1 * d_inverse (offloaded when recursion_ops available)
+        #[cfg(feature = "recursion")]
+        let d1_scaled = scale_gt_with_offload::<E>(&self.d_1, &d_inverse, &mut self.recursion_ops);
+        #[cfg(not(feature = "recursion"))]
+        let d1_scaled = self.d_1.scale(&d_inverse);
+        right_side = right_side.add(&d1_scaled);
 
         // Compare the two sides
         left_side == right_side

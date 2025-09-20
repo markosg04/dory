@@ -124,7 +124,11 @@ pub trait ProverState {
         self,
         setup: &Self::Setup,
         fold_scalars_challenge: FoldScalarsChallenge<Self::Scalar>,
-    ) -> ScalarProductMessage<Self::G1, Self::G2>
+    ) -> (
+        ScalarProductMessage<Self::G1, Self::G2>,
+        Self::Scalar,
+        Self::Scalar,
+    )
     where
         Self::G1: Group,
         Self::G2: Group,
@@ -205,7 +209,7 @@ pub trait VerifierState {
     /// Final verification step for Extended Dory-Reduce
     /// Verifies: e(E₁, H₂) * e(H₁, E₂) = C * e(H₁, H₂)^γ
     fn verify_final_pairing(
-        &self,
+        &mut self,
         setup: &Self::Setup,
         message: &ScalarProductMessage<Self::G1, Self::G2>,
         d_pair: ScalarProductChallenge<Self::Scalar>,

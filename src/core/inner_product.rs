@@ -42,7 +42,15 @@ where
     let (_unused_d, builder) = builder.challenge_scalar_product_scalars();
 
     // Note: `compute_scalar_product_message` applies the `Fold-Scalars` transform, as described in the paper.
-    let scalar_product_msg = state.compute_scalar_product_message::<M1, M2>(setup, challenge);
+    let (scalar_product_msg, s1_final, s2_final) =
+        state.compute_scalar_product_message::<M1, M2>(setup, challenge);
+
+    // Use the recursion-aware method if available
+    #[cfg(feature = "recursion")]
+    let builder =
+        builder.append_scalar_product_message_with_scalars(scalar_product_msg, s1_final, s2_final);
+
+    #[cfg(not(feature = "recursion"))]
     let builder = builder.append_scalar_product_message(scalar_product_msg);
 
     builder
