@@ -14,8 +14,7 @@ use crate::transcript::Transcript;
 // use ark_serialize::CanonicalSerialize;
 use ark_std::rand::RngCore;
 
-#[cfg(feature = "recursion")]
-use jolt_optimizations::ExponentiationSteps;
+use crate::recursion_prelude::ExponentiationSteps;
 
 mod core;
 mod error;
@@ -277,11 +276,11 @@ where
     #[cfg(feature = "recursion")]
     {
         // Extract the GT exponentiation steps from the proof if available
-        let recursion_ops = if !proof.gt_exponentiation_steps.is_empty() {
-            Some(proof.gt_exponentiation_steps.clone())
-        } else {
-            None
-        };
+        let recursion_ops = proof
+            .gt_exponentiation_steps
+            .as_ref()
+            .filter(|steps| !steps.is_empty())
+            .cloned();
 
         // Use the recursion-aware verification
         return verify_evaluation_proof_with_recursion::<E, T, M1, M2, MGT>(

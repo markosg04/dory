@@ -35,20 +35,15 @@ pub struct ProverSetup<E: Pairing> {
     /// Optional cache for G2 generators (not serialized, can be regenerated)
     pub g2_cache: Option<G2Cache>,
     /// Δ₁L[k] = e(Γ₁[..2^(k-1)], Γ₂[..2^(k-1)]) for recursion
-    #[cfg(feature = "recursion")]
-    pub delta_1l: Vec<E::GT>,
+    pub delta_1l: Option<Vec<E::GT>>,
     /// Δ₁R[k] = e(Γ₁[2^(k-1)..2^k], Γ₂[..2^(k-1)]) for recursion
-    #[cfg(feature = "recursion")]
-    pub delta_1r: Vec<E::GT>,
+    pub delta_1r: Option<Vec<E::GT>>,
     /// Δ₂L[k] = same as Δ₁L[k] for recursion
-    #[cfg(feature = "recursion")]
-    pub delta_2l: Vec<E::GT>,
+    pub delta_2l: Option<Vec<E::GT>>,
     /// Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k)] for recursion
-    #[cfg(feature = "recursion")]
-    pub delta_2r: Vec<E::GT>,
+    pub delta_2r: Option<Vec<E::GT>>,
     /// χ[k] = e(Γ₁[..2^k], Γ₂[..2^k]) for recursion
-    #[cfg(feature = "recursion")]
-    pub chi: Vec<E::GT>,
+    pub chi: Option<Vec<E::GT>>,
 }
 
 // Implement CanonicalSerialize and CanonicalDeserialize for ProverSetup by delegating to core
@@ -76,16 +71,11 @@ impl<E: Pairing> CanonicalDeserialize for ProverSetup<E> {
             core,
             g1_cache: None,
             g2_cache: None,
-            #[cfg(feature = "recursion")]
-            delta_1l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            delta_1r: Vec::new(),
-            #[cfg(feature = "recursion")]
-            delta_2l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            delta_2r: Vec::new(),
-            #[cfg(feature = "recursion")]
-            chi: Vec::new(),
+            delta_1l: None,
+            delta_1r: None,
+            delta_2l: None,
+            delta_2r: None,
+            chi: None,
         };
 
         // Initialize delta and chi values for recursion
@@ -184,16 +174,11 @@ impl<E: Pairing> ProverSetup<E> {
             },
             g1_cache: None,
             g2_cache: None,
-            #[cfg(feature = "recursion")]
-            delta_1l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            delta_1r: Vec::new(),
-            #[cfg(feature = "recursion")]
-            delta_2l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            delta_2r: Vec::new(),
-            #[cfg(feature = "recursion")]
-            chi: Vec::new(),
+            delta_1l: None,
+            delta_1r: None,
+            delta_2l: None,
+            delta_2r: None,
+            chi: None,
         };
 
         // Initialize delta and chi values for recursion
@@ -291,52 +276,57 @@ impl<E: Pairing> ProverSetup<E> {
         self.g1_cache.is_some() && self.g2_cache.is_some()
     }
 
-    /// Initialize delta and chi values for recursion (same computation as VerifierSetup)
-    #[cfg(feature = "recursion")]
+    /// Initialize delta and chi values for recursion needs, mirrors the verifier
     pub fn init_delta_chi_values(&mut self) {
-        let max_log_n = self.core.g1_vec.len().trailing_zeros() as usize;
+        #[cfg(feature = "recursion")]
+        {
+            let max_log_n = self.core.g1_vec.len().trailing_zeros() as usize;
 
-        self.delta_1l = Vec::with_capacity(max_log_n + 1);
-        self.delta_1r = Vec::with_capacity(max_log_n + 1);
-        self.delta_2l = Vec::with_capacity(max_log_n + 1);
-        self.delta_2r = Vec::with_capacity(max_log_n + 1);
-        self.chi = Vec::with_capacity(max_log_n + 1);
+            let mut delta_1l = Vec::with_capacity(max_log_n + 1);
+            let mut delta_1r = Vec::with_capacity(max_log_n + 1);
+            let mut delta_2l = Vec::with_capacity(max_log_n + 1);
+            let mut delta_2r = Vec::with_capacity(max_log_n + 1);
+            let mut chi = Vec::with_capacity(max_log_n + 1);
 
-        for k in 0..=max_log_n {
-            if k == 0 {
-                self.delta_1l.push(E::GT::identity());
-                self.delta_1r.push(E::GT::identity());
-                self.delta_2l.push(E::GT::identity());
-                self.delta_2r.push(E::GT::identity());
-                self.chi
-                    .push(E::pair(&self.core.g1_vec[0], &self.core.g2_vec[0]));
-            } else {
-                let half_len = 1 << (k - 1);
-                let full_len = 1 << k;
+            for k in 0..=max_log_n {
+                if k == 0 {
+                    delta_1l.push(E::GT::identity());
+                    delta_1r.push(E::GT::identity());
+                    delta_2l.push(E::GT::identity());
+                    delta_2r.push(E::GT::identity());
+                    chi.push(E::pair(&self.core.g1_vec[0], &self.core.g2_vec[0]));
+                } else {
+                    let half_len = 1 << (k - 1);
+                    let full_len = 1 << k;
 
-                let g1_first_half = &self.core.g1_vec[..half_len];
-                let g1_second_half = &self.core.g1_vec[half_len..full_len];
-                let g2_first_half = &self.core.g2_vec[..half_len];
-                let g2_second_half = &self.core.g2_vec[half_len..full_len];
+                    let g1_first_half = &self.core.g1_vec[..half_len];
+                    let g1_second_half = &self.core.g1_vec[half_len..full_len];
+                    let g2_first_half = &self.core.g2_vec[..half_len];
+                    let g2_second_half = &self.core.g2_vec[half_len..full_len];
 
-                // Δ₁L[k] = Δ₂L[k] = e(Γ₁[..2^(k-1)], Γ₂[..2^(k-1)])
-                self.delta_1l.push(self.chi[k - 1].clone());
-                self.delta_2l.push(self.chi[k - 1].clone());
+                    // Δ₁L[k] = Δ₂L[k] = e(Γ₁[..2^(k-1)], Γ₂[..2^(k-1)])
+                    delta_1l.push(chi[k - 1].clone());
+                    delta_2l.push(chi[k - 1].clone());
 
-                // Δ₁R[k] = e(Γ₁[2^(k-1)..2^k], Γ₂[..2^(k-1)])
-                self.delta_1r
-                    .push(E::multi_pair(g1_second_half, g2_first_half));
+                    // Δ₁R[k] = e(Γ₁[2^(k-1)..2^k], Γ₂[..2^(k-1)])
+                    delta_1r.push(E::multi_pair(g1_second_half, g2_first_half));
 
-                // Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k)]
-                self.delta_2r
-                    .push(E::multi_pair(g1_first_half, g2_second_half));
+                    // Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k)]
+                    delta_2r.push(E::multi_pair(g1_first_half, g2_second_half));
 
-                // χ[k] = e(Γ₁[..2^k], Γ₂[..2^k])
-                self.chi.push(E::multi_pair(
-                    &self.core.g1_vec[..full_len],
-                    &self.core.g2_vec[..full_len],
-                ));
+                    // χ[k] = e(Γ₁[..2^k], Γ₂[..2^k])
+                    chi.push(E::multi_pair(
+                        &self.core.g1_vec[..full_len],
+                        &self.core.g2_vec[..full_len],
+                    ));
+                }
             }
+
+            self.delta_1l = Some(delta_1l);
+            self.delta_1r = Some(delta_1r);
+            self.delta_2l = Some(delta_2l);
+            self.delta_2r = Some(delta_2r);
+            self.chi = Some(chi);
         }
     }
 

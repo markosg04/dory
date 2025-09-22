@@ -19,8 +19,7 @@ use crate::{
     ProofBuilder,
 };
 
-#[cfg(feature = "recursion")]
-use jolt_optimizations::ExponentiationSteps;
+use crate::recursion_prelude::ExponentiationSteps;
 
 /// Implements the Eval-VMV-RE protocol from Dory Section 5
 /// Proves the VMV relation: polynomial(point) = L^T × M × R

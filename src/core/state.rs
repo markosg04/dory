@@ -6,12 +6,10 @@ use crate::{
         SecondReduceChallenge, SecondReduceMessage,
     },
     offload::OffloadContext,
+    recursion_prelude::ExponentiationSteps,
 };
 
 use super::ScalarProductChallenge;
-
-#[cfg(feature = "recursion")]
-use jolt_optimizations::ExponentiationSteps;
 
 /// Trait for the state and computation and state of the Dory protocol.
 ///

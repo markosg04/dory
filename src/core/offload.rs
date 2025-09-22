@@ -1,7 +1,4 @@
-//! GT offloading abstraction for recursive SNARKs
-//!
-//! This module provides a clean abstraction for offloading expensive GT exponentiations
-//! from the verification circuit to the proof generation phase.
+//! GT offloading abstraction for recursive JOLT
 
 use crate::arithmetic::{Group, Pairing};
 
@@ -10,7 +7,6 @@ use jolt_optimizations::ExponentiationSteps;
 #[cfg(feature = "recursion")]
 use std::collections::VecDeque;
 
-/// Context for managing offloaded GT operations
 pub struct OffloadContext {
     #[cfg(feature = "recursion")]
     queue: Option<VecDeque<ExponentiationSteps>>,
@@ -19,7 +15,6 @@ pub struct OffloadContext {
 }
 
 impl OffloadContext {
-    /// Create a new empty offload context
     pub fn new() -> Self {
         Self {
             #[cfg(feature = "recursion")]
@@ -29,7 +24,6 @@ impl OffloadContext {
         }
     }
 
-    /// Create an offload context with precomputed steps
     #[cfg(feature = "recursion")]
     pub fn with_steps(steps: Vec<ExponentiationSteps>) -> Self {
         Self {
@@ -37,7 +31,6 @@ impl OffloadContext {
         }
     }
 
-    /// Check if offloading is available
     pub fn is_offloading_enabled(&self) -> bool {
         #[cfg(feature = "recursion")]
         {
@@ -48,8 +41,6 @@ impl OffloadContext {
             false
         }
     }
-
-    /// Get the next precomputed result if available
     #[cfg(feature = "recursion")]
     fn pop_result(&mut self) -> Option<ExponentiationSteps> {
         self.queue.as_mut().and_then(|q| q.pop_front())
@@ -62,8 +53,7 @@ impl Default for OffloadContext {
     }
 }
 
-
-/// Helper function for GT scaling with optional offloading
+/// GT exp but uses offloaded values if available
 pub fn scale_gt_with_offload<E>(
     value: &E::GT,
     scalar: &<E::GT as Group>::Scalar,
@@ -77,20 +67,17 @@ where
 {
     #[cfg(feature = "recursion")]
     {
-        // Try to use precomputed result if available
+        // Take a pre-computed value if available
         if let Some(step) = ctx.pop_result() {
-            // Convert the precomputed result to the appropriate GT type
-            // This is safe because we validate the size compatibility
             debug_assert_eq!(
                 std::mem::size_of::<E::GT>(),
                 std::mem::size_of_val(&step.result),
                 "Size mismatch between GT type and precomputed result"
             );
 
-            // Use unsafe transmute for the conversion
             let precomputed_result: E::GT = unsafe { std::mem::transmute_copy(&step.result) };
 
-            // In debug mode, verify the result matches native computation
+            // This debug tests correctness of the offloaded values
             #[cfg(debug_assertions)]
             {
                 let native_result = value.scale(scalar);
@@ -104,7 +91,5 @@ where
             return precomputed_result;
         }
     }
-
-    // Fall back to native scaling
     value.scale(scalar)
 }

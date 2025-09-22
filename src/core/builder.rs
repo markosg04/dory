@@ -15,8 +15,7 @@ use crate::{
     toy_transcript::ToyTranscript,
 };
 
-#[cfg(feature = "recursion")]
-use jolt_optimizations::ExponentiationSteps;
+use crate::recursion_prelude::ExponentiationSteps;
 
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
@@ -35,8 +34,7 @@ where
     /// Vector-matrix-vector message (for PCS)
     pub vmv_message: Option<VMVMessage<G1, GT>>,
     /// GT exponentiation steps for recursion
-    #[cfg(feature = "recursion")]
-    pub gt_exponentiation_steps: Vec<ExponentiationSteps>,
+    pub gt_exponentiation_steps: Option<Vec<ExponentiationSteps>>,
 }
 
 /// Trait that defines the structure of the Dory proof.
@@ -145,35 +143,32 @@ where
     /// vector-matrix-vector message, used to transform general dory into PCS
     pub vmv_message: Option<VMVMessage<G1, GT>>,
     /// GT exponentiation steps for recursion
-    #[cfg(feature = "recursion")]
-    pub gt_exponentiation_steps: Vec<ExponentiationSteps>,
-    /// Delta values from setup for offloading GT operations
-    #[cfg(feature = "recursion")]
-    pub setup_delta_1l: Vec<GT>,
-    #[cfg(feature = "recursion")]
-    pub setup_delta_1r: Vec<GT>,
-    #[cfg(feature = "recursion")]
-    pub setup_delta_2l: Vec<GT>,
-    #[cfg(feature = "recursion")]
-    pub setup_delta_2r: Vec<GT>,
-    /// Store challenges and values needed for final phase GT operations
-    #[cfg(feature = "recursion")]
+    pub gt_exponentiation_steps: Option<Vec<ExponentiationSteps>>,
+    /// Delta values from setup for round 1 left (recursion feature)
+    pub setup_delta_1l: Option<Vec<GT>>,
+    /// Delta values from setup for round 1 right (recursion feature)
+    pub setup_delta_1r: Option<Vec<GT>>,
+    /// Delta values from setup for round 2 left (recursion feature)
+    pub setup_delta_2l: Option<Vec<GT>>,
+    /// Delta values from setup for round 2 right (recursion feature)
+    pub setup_delta_2r: Option<Vec<GT>>,
+    /// Fold scalars challenge for final phase
     pub fold_scalars_challenge: Option<FoldScalarsChallenge<Scalar>>,
-    #[cfg(feature = "recursion")]
+    /// Scalar product challenge for final verification
     pub scalar_product_challenge: Option<ScalarProductChallenge<Scalar>>,
-    #[cfg(feature = "recursion")]
+    /// Setup HT value for pairing computation
     pub setup_ht: Option<GT>,
-    #[cfg(feature = "recursion")]
+    /// Setup H1 generator
     pub setup_h1: Option<G1>,
-    #[cfg(feature = "recursion")]
+    /// Setup H2 generator
     pub setup_h2: Option<G2>,
-    #[cfg(feature = "recursion")]
+    /// Setup G1 generator at position 0
     pub setup_g1_0: Option<G1>,
-    #[cfg(feature = "recursion")]
+    /// Setup G2 generator at position 0
     pub setup_g2_0: Option<G2>,
-    #[cfg(feature = "recursion")]
+    /// Final s1 scalar value
     pub s1_final: Option<Scalar>,
-    #[cfg(feature = "recursion")]
+    /// Final s2 scalar value
     pub s2_final: Option<Scalar>,
     /// Fiat shamir
     pub transcript: T,
@@ -205,7 +200,7 @@ where
             second_messages: Vec::new(),
             final_message: None,
             vmv_message: None,
-            gt_exponentiation_steps: Vec::new(),
+            gt_exponentiation_steps: Some(Vec::new()),
             setup_delta_1l: setup.delta_1l.clone(),
             setup_delta_1r: setup.delta_1r.clone(),
             setup_delta_2l: setup.delta_2l.clone(),
@@ -258,7 +253,7 @@ where
             second_messages: Vec::new(),
             final_message: None,
             vmv_message: None,
-            gt_exponentiation_steps: Vec::new(),
+            gt_exponentiation_steps: Some(Vec::new()),
             setup_delta_1l: setup.delta_1l.clone(),
             setup_delta_1r: setup.delta_1r.clone(),
             setup_delta_2l: setup.delta_2l.clone(),
@@ -319,16 +314,11 @@ where
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
-            #[cfg(feature = "recursion")]
             gt_exponentiation_steps: proof.gt_exponentiation_steps,
-            #[cfg(feature = "recursion")]
-            setup_delta_1l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            setup_delta_1r: Vec::new(),
-            #[cfg(feature = "recursion")]
-            setup_delta_2l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            setup_delta_2r: Vec::new(),
+            setup_delta_1l: Some(Vec::new()),
+            setup_delta_1r: Some(Vec::new()),
+            setup_delta_2l: Some(Vec::new()),
+            setup_delta_2r: Some(Vec::new()),
             #[cfg(feature = "recursion")]
             fold_scalars_challenge: None,
             #[cfg(feature = "recursion")]
@@ -366,16 +356,11 @@ where
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
-            #[cfg(feature = "recursion")]
             gt_exponentiation_steps: proof.gt_exponentiation_steps,
-            #[cfg(feature = "recursion")]
-            setup_delta_1l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            setup_delta_1r: Vec::new(),
-            #[cfg(feature = "recursion")]
-            setup_delta_2l: Vec::new(),
-            #[cfg(feature = "recursion")]
-            setup_delta_2r: Vec::new(),
+            setup_delta_1l: Some(Vec::new()),
+            setup_delta_1r: Some(Vec::new()),
+            setup_delta_2l: Some(Vec::new()),
+            setup_delta_2r: Some(Vec::new()),
             #[cfg(feature = "recursion")]
             fold_scalars_challenge: None,
             #[cfg(feature = "recursion")]
@@ -798,7 +783,7 @@ where
     #[cfg(feature = "recursion")]
     pub fn finalize_for_recursion<E>(
         &mut self,
-        setup: &crate::setup::ProverSetup<E>,
+        _setup: &crate::setup::ProverSetup<E>,
         initial_nu: usize,
         initial_d1: Option<GT>,
         initial_e1: G1,
@@ -810,10 +795,12 @@ where
         G2: crate::arithmetic::Group + Clone,
     {
         // Clear any existing steps
-        self.gt_exponentiation_steps.clear();
+        if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+            gt_steps.clear();
+        }
 
         // Check if we have setup values
-        if self.setup_delta_1l.is_empty() {
+        if self.setup_delta_1l.as_ref().map_or(true, |v| v.is_empty()) {
             println!("WARNING: No setup delta values available for recursion");
             return;
         }
@@ -856,18 +843,26 @@ where
             // FIRST: d_2.scale(&beta) and d_1.scale(&beta_inv)
             if let (Some(d1_val), Some(d2_val)) = (&d_1, &d_2) {
                 let (_, steps_d2) = d2_val.scale_with_steps(&beta);
-                self.gt_exponentiation_steps.push(steps_d2);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps_d2);
+                }
 
                 let (_, steps_d1) = d1_val.scale_with_steps(&beta_inv);
-                self.gt_exponentiation_steps.push(steps_d1);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps_d1);
+                }
             }
 
             // THEN: c_plus.scale(&alpha) and c_minus.scale(&alpha_inv)
             let (_, steps_c_plus) = second_msg.c_plus.scale_with_steps(&alpha);
-            self.gt_exponentiation_steps.push(steps_c_plus);
+            if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                gt_steps.push(steps_c_plus);
+            }
 
             let (_, steps_c_minus) = second_msg.c_minus.scale_with_steps(&alpha_inv);
-            self.gt_exponentiation_steps.push(steps_c_minus);
+            if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                gt_steps.push(steps_c_minus);
+            }
 
             // 2. Operations from dory_reduce_verify_update_ds
             // The verifier does D1 operations (including deltas) first, then D2 operations
@@ -875,40 +870,59 @@ where
             // D1 operations:
             // d1_left.scale(&alpha)
             let (_, steps_d1l) = first_msg.d1_left.scale_with_steps(&alpha);
-            self.gt_exponentiation_steps.push(steps_d1l);
+            if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                gt_steps.push(steps_d1l);
+            }
 
             // Then the delta operations for D1 using the current nu value
-            if nu < self.setup_delta_1l.len() {
+            if self.setup_delta_1l.as_ref().map_or(false, |v| nu < v.len()) {
                 // delta_1l.scale(&alpha_beta)
                 let alpha_beta = alpha.mul(&beta);
-                let (_, steps) = self.setup_delta_1l[nu].scale_with_steps(&alpha_beta);
-                self.gt_exponentiation_steps.push(steps);
+                let (_, steps) =
+                    self.setup_delta_1l.as_ref().unwrap()[nu].scale_with_steps(&alpha_beta);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
 
                 // delta_1r.scale(&beta)
-                let (_, steps) = self.setup_delta_1r[nu].scale_with_steps(&beta);
-                self.gt_exponentiation_steps.push(steps);
+                let (_, steps) = self.setup_delta_1r.as_ref().unwrap()[nu].scale_with_steps(&beta);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
             }
 
             // D2 operations:
             // d2_left.scale(&alpha_inv)
             let (_, steps_d2l) = first_msg.d2_left.scale_with_steps(&alpha_inv);
-            self.gt_exponentiation_steps.push(steps_d2l);
+            if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                gt_steps.push(steps_d2l);
+            }
 
             // Then the delta operations for D2
-            if nu < self.setup_delta_2l.len() {
+            if self.setup_delta_2l.as_ref().map_or(false, |v| nu < v.len()) {
                 // delta_2l.scale(&alpha_inv_beta_inv)
                 let alpha_inv_beta_inv = alpha_inv.mul(&beta_inv);
-                let (_, steps) = self.setup_delta_2l[nu].scale_with_steps(&alpha_inv_beta_inv);
-                self.gt_exponentiation_steps.push(steps);
+                let (_, steps) =
+                    self.setup_delta_2l.as_ref().unwrap()[nu].scale_with_steps(&alpha_inv_beta_inv);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
 
                 // delta_2r.scale(&beta_inv)
-                let (_, steps) = self.setup_delta_2r[nu].scale_with_steps(&beta_inv);
-                self.gt_exponentiation_steps.push(steps);
-            } else if nu >= self.setup_delta_1l.len() {
+                let (_, steps) =
+                    self.setup_delta_2r.as_ref().unwrap()[nu].scale_with_steps(&beta_inv);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
+            } else if self
+                .setup_delta_1l
+                .as_ref()
+                .map_or(false, |v| nu >= v.len())
+            {
                 println!(
                     "WARNING: nu={} >= setup_delta_1l.len()={}",
                     nu,
-                    self.setup_delta_1l.len()
+                    self.setup_delta_1l.as_ref().unwrap().len()
                 );
             }
 
@@ -918,10 +932,11 @@ where
                 let mut new_d1 = first_msg.d1_left.scale(&alpha);
                 new_d1 = new_d1.add(&first_msg.d1_right);
 
-                if nu < self.setup_delta_1l.len() {
+                if self.setup_delta_1l.as_ref().map_or(false, |v| nu < v.len()) {
                     let alpha_beta = alpha.mul(&beta);
-                    new_d1 = new_d1.add(&self.setup_delta_1l[nu].scale(&alpha_beta));
-                    new_d1 = new_d1.add(&self.setup_delta_1r[nu].scale(&beta));
+                    new_d1 =
+                        new_d1.add(&self.setup_delta_1l.as_ref().unwrap()[nu].scale(&alpha_beta));
+                    new_d1 = new_d1.add(&self.setup_delta_1r.as_ref().unwrap()[nu].scale(&beta));
                 }
                 *d1_val = new_d1;
 
@@ -929,10 +944,12 @@ where
                 let mut new_d2 = first_msg.d2_left.scale(&alpha_inv);
                 new_d2 = new_d2.add(&first_msg.d2_right);
 
-                if nu < self.setup_delta_2l.len() {
+                if self.setup_delta_2l.as_ref().map_or(false, |v| nu < v.len()) {
                     let alpha_inv_beta_inv = alpha_inv.mul(&beta_inv);
-                    new_d2 = new_d2.add(&self.setup_delta_2l[nu].scale(&alpha_inv_beta_inv));
-                    new_d2 = new_d2.add(&self.setup_delta_2r[nu].scale(&beta_inv));
+                    new_d2 = new_d2
+                        .add(&self.setup_delta_2l.as_ref().unwrap()[nu].scale(&alpha_inv_beta_inv));
+                    new_d2 =
+                        new_d2.add(&self.setup_delta_2r.as_ref().unwrap()[nu].scale(&beta_inv));
                 }
                 *d2_val = new_d2;
             }
@@ -966,7 +983,7 @@ where
             Some(d_challenge),
             Some(s1_final),
             Some(s2_final),
-            Some(scalar_msg),
+            Some(_scalar_msg),
             Some(ht),
         ) = (
             &self.fold_scalars_challenge,
@@ -986,7 +1003,9 @@ where
             // 1. ht.scale(&s1_final.mul(&s2_final))
             let s_product = s1_final.mul(&s2_final);
             let (_, steps) = ht.scale_with_steps(&s_product);
-            self.gt_exponentiation_steps.push(steps);
+            if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                gt_steps.push(steps);
+            }
 
             // 2. pairing(h1, e2).scale(&gamma) - use tracked e_2
             if let (Some(h1), Some(h2), Some(e1_val), Some(e2_val)) =
@@ -994,12 +1013,16 @@ where
             {
                 let pairing_h1_e2 = E::pair(h1, e2_val);
                 let (_, steps) = pairing_h1_e2.scale_with_steps(&gamma);
-                self.gt_exponentiation_steps.push(steps);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
 
                 // 3. pairing(e1, h2).scale(&gamma_inv) - use tracked e_1
                 let pairing_e1_h2 = E::pair(e1_val, h2);
                 let (_, steps) = pairing_e1_h2.scale_with_steps(&gamma_inv);
-                self.gt_exponentiation_steps.push(steps);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
             }
 
             // Operations from verify_final_pairing:
@@ -1033,16 +1056,20 @@ where
                 // 4. d_2.scale(&d)
                 // 5. d_1.scale(&d_inv)
                 let (_, steps) = final_d2.scale_with_steps(&d);
-                self.gt_exponentiation_steps.push(steps);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
 
                 let (_, steps) = final_d1.scale_with_steps(&d_inv);
-                self.gt_exponentiation_steps.push(steps);
+                if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+                    gt_steps.push(steps);
+                }
             }
         }
 
         println!(
             "DEBUG: finalize_for_recursion complete, tracked {} GT operations",
-            self.gt_exponentiation_steps.len()
+            self.gt_exponentiation_steps.as_ref().map_or(0, |v| v.len())
         );
     }
 
@@ -1051,17 +1078,22 @@ where
     /// The verifier only needs the result field, not the intermediate steps
     #[cfg(feature = "recursion")]
     pub fn minimize_exponentiation_steps(&mut self) {
-        for steps in &mut self.gt_exponentiation_steps {
-            // Clear the heavy fields while keeping result
-            steps.base = Default::default(); // Sets to zero/identity
-            steps.exponent = Default::default(); // Sets to zero
-            steps.steps.clear(); // Remove all intermediate steps
-                                 // Keep steps.result unchanged - it's needed by verifier
+        if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+            for steps in gt_steps {
+                // Clear the heavy fields while keeping result
+                steps.base = Default::default(); // Sets to zero/identity
+                steps.exponent = Default::default(); // Sets to zero
+                steps.steps.clear(); // Remove all intermediate steps
+                                     // Keep steps.result unchanged - it's needed by verifier
+            }
         }
 
         println!(
             "Minimized {} ExponentiationSteps (cleared base, exponent, and steps fields)",
-            self.gt_exponentiation_steps.len()
+            self.gt_exponentiation_steps
+                .as_ref()
+                .map(|v| v.len())
+                .unwrap_or(0)
         );
     }
 

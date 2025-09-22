@@ -436,7 +436,8 @@ where
         new_c = new_c.add(&c_plus_scaled);
 
         // Add α⁻¹ * C_minus (offloaded when recursion_ops available)
-        let c_minus_scaled = scale_gt_with_offload::<E>(&c_minus, &alpha_inv, &mut self.offload_ctx);
+        let c_minus_scaled =
+            scale_gt_with_offload::<E>(&c_minus, &alpha_inv, &mut self.offload_ctx);
         new_c = new_c.add(&c_minus_scaled);
 
         self.c = new_c;
@@ -457,7 +458,6 @@ where
         let (alpha, alpha_inv) = alpha_pair;
         let (beta, beta_inv) = beta_pair;
 
-        // println!("DEBUG: dory_reduce_verify_update_ds using nu={} for delta indexing", self.nu);
         let delta_1l = &setup.delta_1l[self.nu];
         let delta_1r = &setup.delta_1r[self.nu];
         let delta_2l = &setup.delta_2l[self.nu];
@@ -472,7 +472,8 @@ where
 
         // alpha * beta * Delta_1L (offloaded when recursion_ops available)
         let alpha_beta = alpha.mul(&beta);
-        let delta_1l_scaled = scale_gt_with_offload::<E>(&delta_1l, &alpha_beta, &mut self.offload_ctx);
+        let delta_1l_scaled =
+            scale_gt_with_offload::<E>(&delta_1l, &alpha_beta, &mut self.offload_ctx);
 
         new_d_1 = new_d_1.add(&delta_1l_scaled);
 
@@ -489,11 +490,13 @@ where
 
         // alpha_inv * beta_inv * Delta_2L (offloaded when recursion_ops available)
         let alpha_inv_beta_inv = alpha_inv.mul(&beta_inv);
-        let delta_2l_scaled = scale_gt_with_offload::<E>(&delta_2l, &alpha_inv_beta_inv, &mut self.offload_ctx);
+        let delta_2l_scaled =
+            scale_gt_with_offload::<E>(&delta_2l, &alpha_inv_beta_inv, &mut self.offload_ctx);
         new_d_2 = new_d_2.add(&delta_2l_scaled);
 
         // beta_inv * Delta_2R (offloaded when recursion_ops available)
-        let delta_2r_scaled = scale_gt_with_offload::<E>(&delta_2r, &beta_inv, &mut self.offload_ctx);
+        let delta_2r_scaled =
+            scale_gt_with_offload::<E>(&delta_2r, &beta_inv, &mut self.offload_ctx);
         new_d_2 = new_d_2.add(&delta_2r_scaled);
 
         self.d_1 = new_d_1;
@@ -570,12 +573,14 @@ where
 
         // Term 2: γ * e(setup.h1, self.e_2) (offloaded when recursion_ops available)
         let pairing_h1_e2 = E::pair(&setup.h1, &self.e_2);
-        let pairing_h1_e2_scaled = scale_gt_with_offload::<E>(&pairing_h1_e2, &gamma, &mut self.offload_ctx);
+        let pairing_h1_e2_scaled =
+            scale_gt_with_offload::<E>(&pairing_h1_e2, &gamma, &mut self.offload_ctx);
         new_c = new_c.add(&pairing_h1_e2_scaled);
 
         // Term 3: γ⁻¹ * e(self.e_1, setup.h2) (offloaded when recursion_ops available)
         let pairing_e1_h2 = E::pair(&self.e_1, &setup.h2);
-        let pairing_e1_h2_scaled = scale_gt_with_offload::<E>(&pairing_e1_h2, &gamma_inv, &mut self.offload_ctx);
+        let pairing_e1_h2_scaled =
+            scale_gt_with_offload::<E>(&pairing_e1_h2, &gamma_inv, &mut self.offload_ctx);
         new_c = new_c.add(&pairing_e1_h2_scaled);
 
         self.c = new_c;

@@ -10,6 +10,7 @@ pub mod inner_product;
 pub mod interactive_protocol;
 pub mod messages;
 pub mod offload;
+pub mod recursion_prelude;
 pub mod setup;
 pub mod state;
 
