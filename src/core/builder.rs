@@ -104,8 +104,7 @@ pub trait ProofBuilder {
         Self::G2: crate::arithmetic::Group + Clone,
         Self: Sized,
     {
-        // Default implementation just returns self
-        // Concrete implementations can override
+        // requires a concrete implementation due to types coming from a16z arkworks fork
         self
     }
 }
@@ -212,7 +211,7 @@ where
         }
     }
 
-    /// Constructor from new transcript (without setup for non-recursion mode)
+    /// Constructor from new transcript (without setup values for non-recursion mode)
     #[cfg(not(feature = "recursion"))]
     pub fn new(transcript: T) -> Self {
         Self {
@@ -444,9 +443,6 @@ where
         #[cfg(feature = "recursion")]
         self.second_challenges.push(challenge.clone());
 
-        // GT operation tracking will be done in finalize_for_recursion
-        // to ensure correct ordering
-
         self.second_messages.push(message);
         (challenge, self)
     }
@@ -516,8 +512,6 @@ where
         Self::G1: crate::arithmetic::Group + Clone,
         Self::G2: crate::arithmetic::Group + Clone,
     {
-        // Call the actual implementation method on DoryProofBuilder
-        // This is the non-trait method defined below
         DoryProofBuilder::finalize_for_recursion(
             &mut self, setup, initial_nu, initial_d1, initial_e1, initial_e2,
         );
@@ -760,7 +754,6 @@ where
     }
 }
 
-/// Additional debug helpers:
 impl<G1, G2, GT, Scalar, T> DoryProofBuilder<G1, G2, GT, Scalar, T>
 where
     G1: Group<Scalar = Scalar>,
@@ -769,7 +762,7 @@ where
     Scalar: Field,
     T: Transcript<Scalar = Scalar>,
 {
-    /// Finalize the proof for recursion by computing GT exponentiation steps
+    /// Finalize the proof for recursion case by computing GT exponentiation steps to help verifier
     /// This must be called after all rounds are complete but before building the proof
     #[cfg(feature = "recursion")]
     pub fn finalize_for_recursion<E>(
@@ -785,12 +778,10 @@ where
         G1: crate::arithmetic::Group + Clone,
         G2: crate::arithmetic::Group + Clone,
     {
-        // Clear any existing steps
         if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
             gt_steps.clear();
         }
 
-        // Check if we have setup values
         if self.setup_delta_1l.as_ref().map_or(true, |v| v.is_empty()) {
             println!("WARNING: No setup delta values available for recursion");
             return;
@@ -811,13 +802,12 @@ where
             initial_nu, num_rounds
         );
 
-        // Initialize d_1, d_2, e_1, and e_2 tracking
+        // We need to mimic the verifier calculations of d_1, d_2, e_1, e_2 in **same order**
         let mut d_1 = initial_d1;
         let mut d_2 = self.vmv_message.as_ref().map(|vmv| vmv.d2.clone());
         let mut e_1 = Some(initial_e1);
         let mut e_2 = Some(initial_e2);
 
-        // Process each round in the exact order the verifier will
         for round_idx in 0..num_rounds {
             let first_msg = &self.first_messages[round_idx];
             let second_msg = &self.second_messages[round_idx];
@@ -831,7 +821,6 @@ where
             // 1. Operations from dory_reduce_verify_update_c
             // The verifier does: d_2.scale(&beta), d_1.scale(&beta_inv), c_plus.scale(&alpha), c_minus.scale(&alpha_inv)
 
-            // FIRST: d_2.scale(&beta) and d_1.scale(&beta_inv)
             if let (Some(d1_val), Some(d2_val)) = (&d_1, &d_2) {
                 let (_, steps_d2) = d2_val.scale_with_steps(&beta);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
@@ -844,7 +833,7 @@ where
                 }
             }
 
-            // THEN: c_plus.scale(&alpha) and c_minus.scale(&alpha_inv)
+            // 2: c_plus.scale(&alpha) and c_minus.scale(&alpha_inv)
             let (_, steps_c_plus) = second_msg.c_plus.scale_with_steps(&alpha);
             if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
                 gt_steps.push(steps_c_plus);
@@ -855,7 +844,7 @@ where
                 gt_steps.push(steps_c_minus);
             }
 
-            // 2. Operations from dory_reduce_verify_update_ds
+            // 3. Operations from dory_reduce_verify_update_ds
             // The verifier does D1 operations (including deltas) first, then D2 operations
 
             // D1 operations:
@@ -962,7 +951,6 @@ where
                 e_2 = Some(new_e2);
             }
 
-            // Decrement nu as the verifier does after each round
             nu = nu.saturating_sub(1);
         }
 
@@ -1017,7 +1005,7 @@ where
             }
 
             // Operations from verify_final_pairing:
-            // IMPORTANT: We need the d_1 and d_2 AFTER apply_fold_scalars updates them
+            // We need the d_1 and d_2 AFTER apply_fold_scalars updates them
             // apply_fold_scalars adds terms to d_1 and d_2:
             // d_1 = d_1 + e(H₁, g2_0 * s1_final * gamma)
             // d_2 = d_2 + e(g1_0 * s2_final * gamma_inv, H₂)
@@ -1064,18 +1052,15 @@ where
         );
     }
 
-    /// Minimize the size of ExponentiationSteps by clearing all fields except result
-    /// This significantly reduces proof size for deserialization
-    /// The verifier only needs the result field, not the intermediate steps
+    /// This is a bit of a hack for now to test proof size
+    /// TODO(markosg04) remove this
     #[cfg(feature = "recursion")]
     pub fn minimize_exponentiation_steps(&mut self) {
         if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
             for steps in gt_steps {
-                // Clear the heavy fields while keeping result
-                steps.base = Default::default(); // Sets to zero/identity
-                steps.exponent = Default::default(); // Sets to zero
-                steps.steps.clear(); // Remove all intermediate steps
-                                     // Keep steps.result unchanged - it's needed by verifier
+                steps.base = Default::default();
+                steps.exponent = Default::default();
+                steps.steps.clear();
             }
         }
 

@@ -621,7 +621,6 @@ where
         message: &ScalarProductMessage<Self::G1, Self::G2>,
         d_pair: ScalarProductChallenge<Self::Scalar>, // This should be a fresh challenge 'd', not gamma
     ) -> bool {
-        // challenge
         let (d, d_inverse) = (d_pair.d, d_pair.d_inverse);
 
         // Assert that we're at the appropriate round (nu = 0)

@@ -80,7 +80,7 @@ where
 
             let precomputed_result: E::GT = unsafe { std::mem::transmute_copy(&step.result) };
 
-            // This debug tests correctness of the offloaded values
+            //  tests correctness of the offloaded values
             #[cfg(debug_assertions)]
             {
                 let native_result = value.scale(scalar);
