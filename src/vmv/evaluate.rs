@@ -196,12 +196,10 @@ where
 
     // Finalize for recursion if feature is enabled
     #[cfg(feature = "recursion")]
-    let mut builder =
+    let builder =
         builder.finalize_for_recursion(prover_setup, nu, Some(initial_d1), initial_e1, initial_e2);
-
-    // Minimize the ExponentiationSteps to reduce proof size
-    #[cfg(feature = "recursion")]
-    builder.minimize_exponentiation_steps();
+    #[cfg(not(feature = "recursion"))]
+    let builder = builder;
 
     builder
 }

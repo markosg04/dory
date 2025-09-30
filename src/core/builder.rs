@@ -37,6 +37,28 @@ where
     pub gt_exponentiation_steps: Option<Vec<ExponentiationSteps>>,
 }
 
+impl<G1, G2, GT> DoryProof<G1, G2, GT>
+where
+    G1: Group,
+    G2: Group,
+    GT: Group,
+{
+    /// This is a bit of a hack for now to test proof size
+    /// TODO(markosg04) remove this
+    #[cfg(feature = "recursion")]
+    pub fn minimize_exponentiation_steps(&mut self) {
+        if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
+            for steps in gt_steps {
+                steps.base = Default::default();
+                steps.exponent = Default::default();
+                steps.rho_mles.clear();
+                steps.quotient_mles.clear();
+                steps.bits.clear();
+            }
+        }
+    }
+}
+
 /// Trait that defines the structure of the Dory proof.
 ///
 /// A type implementing this trait acts as both the transcript and the proof serializer.
@@ -320,6 +342,24 @@ where
             vmv_message: self.vmv_message.clone(),
             gt_exponentiation_steps: self.gt_exponentiation_steps.clone(),
         }
+    }
+
+    /// Build a Dory proof and optionally return full exponentiation steps before minimization
+    /// This is used when recursion feature is enabled to preserve the full steps for sz_check
+    #[cfg(feature = "recursion")]
+    pub fn build_with_full_steps(
+        self,
+    ) -> (DoryProof<G1, G2, GT>, Option<Vec<ExponentiationSteps>>) {
+        // Clone the full exponentiation steps before minimization
+        let full_steps = self.gt_exponentiation_steps.clone();
+
+        // Build the proof with full steps
+        let mut proof = self.build();
+
+        // Minimize the steps in the proof
+        proof.minimize_exponentiation_steps();
+
+        (proof, full_steps)
     }
 
     /// Create a DoryProofBuilder from a DoryProof and a fresh transcript
@@ -1049,27 +1089,6 @@ where
         println!(
             "DEBUG: finalize_for_recursion complete, tracked {} GT operations",
             self.gt_exponentiation_steps.as_ref().map_or(0, |v| v.len())
-        );
-    }
-
-    /// This is a bit of a hack for now to test proof size
-    /// TODO(markosg04) remove this
-    #[cfg(feature = "recursion")]
-    pub fn minimize_exponentiation_steps(&mut self) {
-        if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-            for steps in gt_steps {
-                steps.base = Default::default();
-                steps.exponent = Default::default();
-                steps.steps.clear();
-            }
-        }
-
-        println!(
-            "Minimized {} ExponentiationSteps (cleared base, exponent, and steps fields)",
-            self.gt_exponentiation_steps
-                .as_ref()
-                .map(|v| v.len())
-                .unwrap_or(0)
         );
     }
 
