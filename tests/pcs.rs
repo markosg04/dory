@@ -10,38 +10,41 @@ use dory::curve::{
 
 #[test]
 fn test_pcs_api_workflow() {
+    tracing_subscriber::fmt::init();
     let mut rng = test_rng();
     let domain = b"dory_pcs_test";
 
     // Multilinear polynomial parameters
     let num_variables = 20;
-    let sigma = 10; // sigma must be <= max_log_n / 2 for the SRS
+    let sigma = 10; // sigma must be <= max_log_n / 2 for the URS
     let num_coeffs = 1 << num_variables;
 
-    println!(
+    tracing::debug!(
         "Testing PCS API with {} variables, {} coefficients, sigma = {}",
-        num_variables, num_coeffs, sigma
+        num_variables,
+        num_coeffs,
+        sigma
     );
 
-    // Setup with preloaded SRS file
+    // Setup with preloaded URS file
     let setup_start = Instant::now();
-    let srs_path = "./k_12.srs";
+    let urs_path = "./k_12.urs";
     let (prover_setup, verifier_setup) =
-        setup_with_srs_file::<ArkBn254Pairing, _>(&mut rng, num_variables, Some(srs_path));
+        setup_with_urs_file::<ArkBn254Pairing, _>(&mut rng, num_variables, Some(urs_path));
 
     // Initialize cache for performance optimization
-    println!("Initializing cache...");
+    tracing::debug!("Initializing cache");
     let cache_init_start = Instant::now();
     // prover_setup.init_cache();
     let cache_init_time = cache_init_start.elapsed();
-    println!("✓ Cache initialized in {:?}", cache_init_time);
-    println!(
+    tracing::debug!("Cache initialized in {:?}", cache_init_time);
+    tracing::debug!(
         "Cache initialization complete. Has cache: {}",
         prover_setup.has_cache()
     );
 
     // Print memory usage statistics for the caches
-    println!("\n=== CACHE MEMORY PROFILING ===");
+    tracing::debug!("=== CACHE MEMORY PROFILING ===");
     if let Some(g1_cache) = &prover_setup.g1_cache {
         g1_cache.print_memory_stats();
     }
@@ -50,7 +53,7 @@ fn test_pcs_api_workflow() {
     }
 
     let setup_time = setup_start.elapsed();
-    println!("Setup time (including cache): {:?}", setup_time);
+    tracing::debug!("Setup time (including cache): {:?}", setup_time);
 
     // Random multilinear polynomial coefficients
     let coeffs: Vec<Fr> = (0..num_coeffs).map(|_| Fr::rand(&mut rng)).collect();
@@ -64,7 +67,7 @@ fn test_pcs_api_workflow() {
     let (commitment, _) =
         commit::<ArkBn254Pairing, OptimizedMsmG1, _>(&polynomial, 0, sigma, &prover_setup);
     let commit_time = commit_start.elapsed();
-    println!("Commit time: {:?}", commit_time);
+    tracing::debug!("Commit time: {:?}", commit_time);
 
     // Evaluate and prove
     let eval_start = Instant::now();
@@ -79,7 +82,7 @@ fn test_pcs_api_workflow() {
     );
     let evaluation = polynomial.evaluate(&point);
     let eval_time = eval_start.elapsed();
-    println!("Evaluate and prove time: {:?}", eval_time);
+    tracing::debug!("Evaluate and prove time: {:?}", eval_time);
 
     // Print proof statistics before verification consumes it
     proof.print_proof_stats();
@@ -97,11 +100,11 @@ fn test_pcs_api_workflow() {
         verify_transcript,
     );
     let verify_time = verify_start.elapsed();
-    println!("Verify time: {:?}", verify_time);
+    tracing::debug!("Verify time: {:?}", verify_time);
 
     let total_time = setup_time + commit_time + eval_time + verify_time;
-    println!("Total time: {:?}", total_time);
+    tracing::debug!("Total time: {:?}", total_time);
 
     assert!(result.is_ok(), "PCS verification should succeed");
-    println!("✓ PCS API test passed");
+    tracing::debug!("PCS API test passed");
 }

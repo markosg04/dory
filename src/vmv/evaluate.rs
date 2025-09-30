@@ -50,10 +50,10 @@ where
 {
     // Validate inputs
     if prover_state.v1.is_empty() || prover_state.s1.is_empty() {
-        println!("v1 or s1 is empty in eval_vmv_re_prove");
+        tracing::warn!("v1 or s1 is empty in eval_vmv_re_prove");
     }
     if prover_state.nu > 0 && prover_setup.g1_vec().len() < (1 << prover_state.nu) {
-        println!("prover_setup.g1_vec doesn't have enough elements for nu");
+        tracing::warn!("prover_setup.g1_vec doesn't have enough elements for nu");
     }
 
     // --- Protocol computations (Dory Section 5) ---
@@ -88,7 +88,7 @@ where
     // E₁ = ⟨T~₀, ~L⟩
     // Protocol: E₁ = ⟨~L, C₀⟩ + rE₁·H₁ (randomness omitted)
     if prover_state.s2.is_empty() && !prover_state.v1.is_empty() {
-        println!("s2 is empty but v1 is not in E₁ calculation");
+        tracing::warn!("s2 is empty but v1 is not in E₁ calculation");
     }
     let e1 = M1::msm(&prover_state.v1, &prover_state.s2);
 
@@ -138,7 +138,7 @@ where
 {
     // 1. Compute parameters
     let nu = compute_nu(point.len(), sigma);
-    // println!("nu length: {:?}", nu); -> useful for debug
+    tracing::debug!("nu length: {:?}", nu);
 
     // 2. Compute row commits (T` in the paper?)
     let t_vec_prime = row_commitments

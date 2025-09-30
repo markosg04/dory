@@ -14,7 +14,7 @@ Dory is a polynomial commitment scheme with excellent asymptotic performance as 
   - [🛠️ Installation](#️-installation)
   - [🚀 Usage](#-usage)
     - [Basic Example](#basic-example)
-    - [Setup and SRS Management](#setup-and-srs-management)
+    - [Setup and URS Management](#setup-and-urs-management)
   - [🧪 Testing](#-testing)
   - [📊 Performance](#-performance)
   - [🔧 Technical Overview](#-technical-overview)
@@ -29,7 +29,7 @@ Dory is a polynomial commitment scheme with excellent asymptotic performance as 
 
 - **Efficient Polynomial Commitments**: Optimized implementation of the Dory PCS with excellent asymptotic performance
 - **Multilinear Polynomial Support**: Full support for multilinear polynomials with evaluation proofs
-- **SRS Management**: Structured Reference String (SRS) generation, saving, and loading with file caching
+- **URS Management**: Universal Reference String (URS) generation, saving, and loading with file caching
 - **Flexible Backend**: Supports multiple elliptic curve backends via the Arkworks ecosystem
 
 ## <a name="installation"></a>🛠️ Installation
@@ -66,13 +66,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup parameters
     let num_variables = 10;  // 2^10 = 1024 coefficients
     let sigma = 5;           // Reduction parameter
-    
-    // Generate or load SRS (Structured Reference String)
-    let (prover_setup, verifier_setup) = 
-        setup_with_srs_file::<ArkBn254Pairing, _>(
-            &mut rng, 
-            num_variables, 
-            Some("./k_10.srs")
+
+    // Generate or load URS (Universal Reference String)
+    let (prover_setup, verifier_setup) =
+        setup_with_urs_file::<ArkBn254Pairing, _>(
+            &mut rng,
+            num_variables,
+            Some("./k_10.urs")
         );
     
     // Create a random multilinear polynomial
@@ -133,24 +133,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Setup and SRS Management
+### Setup and URS Management
 
-The library provides flexible SRS (Structured Reference String) management:
+The library provides flexible URS (Universal Reference String) management:
 
 ```rust
-// Generate new SRS and save to file
-let filename = generate_srs::<ArkBn254Pairing, _>(&mut rng, 12)?;
-println!("SRS saved to: {}", filename);
+// Generate new URS and save to file
+let filename = generate_urs::<ArkBn254Pairing, _>(&mut rng, 12)?;
+println!("URS saved to: {}", filename);
 
-// Load existing SRS
-let prover_setup = load_prover_setup::<ArkBn254Pairing>("k_12.srs")?;
-let verifier_setup = load_verifier_setup::<ArkBn254Pairing>("k_12.srs")?;
+// Load existing URS
+let prover_setup = load_prover_setup::<ArkBn254Pairing>("k_12.urs")?;
+let verifier_setup = load_verifier_setup::<ArkBn254Pairing>("k_12.urs")?;
 
 // Setup with automatic file handling
-let (prover_setup, verifier_setup) = setup_with_srs_file::<ArkBn254Pairing, _>(
-    &mut rng, 
-    12, 
-    Some("k_12.srs")  // Will load if exists, generate and save if not
+let (prover_setup, verifier_setup) = setup_with_urs_file::<ArkBn254Pairing, _>(
+    &mut rng,
+    12,
+    Some("k_12.urs")  // Will load if exists, generate and save if not
 );
 ```
 
@@ -216,7 +216,7 @@ cargo test --release test_pcs_api_workflow -- --nocapture
 The implementation includes several performance optimizations:
 
 - **Parallel Processing**: Leverages Rayon for parallel computations
-- **SRS Caching**: Avoids redundant setup generation through file caching
+- **URS Caching**: Avoids redundant setup generation through file caching
 
 Typical performance for BN254 curve on modern hardware:
 - **Setup (n=2^20)**: ~150 seconds (one-time cost, cached) for k = 20
@@ -233,7 +233,7 @@ This implementation follows the Dory paper's construction:
 - **Inner Product Arguments**: The foundation of the Dory protocol (`src/core/`)
 - **VMV (Vector-Matrix-Vector) Module**: Converts inner products to polynomial commitments (`src/vmv/`)
 - **Interactive Protocol**: Fiat-Shamir transformed interactive proofs
-- **Setup Generation**: Structured reference string creation and management
+- **Setup Generation**: Universal reference string creation and management
 
 ### Cryptographic Assumptions
 

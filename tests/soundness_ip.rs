@@ -46,7 +46,7 @@ fn setup_test_environment(
 
 #[test]
 fn test_soundness_tamper_d1_left() {
-    println!("=== Testing soundness: tampering with d1_left ===");
+    tracing::debug!("=== Testing soundness: tampering with d1_left ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -86,14 +86,14 @@ fn test_soundness_tamper_d1_left() {
             "Verification should fail with corrupted d1_left"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_d1_right() {
-    println!("=== Testing soundness: tampering with d1_right ===");
+    tracing::debug!("=== Testing soundness: tampering with d1_right ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -133,14 +133,14 @@ fn test_soundness_tamper_d1_right() {
             "Verification should fail with corrupted d1_right"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_d2_left() {
-    println!("=== Testing soundness: tampering with d2_left ===");
+    tracing::debug!("=== Testing soundness: tampering with d2_left ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -180,14 +180,14 @@ fn test_soundness_tamper_d2_left() {
             "Verification should fail with corrupted d2_left"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_d2_right() {
-    println!("=== Testing soundness: tampering with d2_right ===");
+    tracing::debug!("=== Testing soundness: tampering with d2_right ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -227,14 +227,14 @@ fn test_soundness_tamper_d2_right() {
             "Verification should fail with corrupted d2_right"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e1_beta() {
-    println!("=== Testing soundness: tampering with e1_beta ===");
+    tracing::debug!("=== Testing soundness: tampering with e1_beta ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -274,14 +274,14 @@ fn test_soundness_tamper_e1_beta() {
             "Verification should fail with corrupted e1_beta"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e2_beta() {
-    println!("=== Testing soundness: tampering with e2_beta ===");
+    tracing::debug!("=== Testing soundness: tampering with e2_beta ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -321,14 +321,14 @@ fn test_soundness_tamper_e2_beta() {
             "Verification should fail with corrupted e2_beta"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_c_plus() {
-    println!("=== Testing soundness: tampering with c_plus ===");
+    tracing::debug!("=== Testing soundness: tampering with c_plus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -368,14 +368,14 @@ fn test_soundness_tamper_c_plus() {
             "Verification should fail with corrupted c_plus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_c_minus() {
-    println!("=== Testing soundness: tampering with c_minus ===");
+    tracing::debug!("=== Testing soundness: tampering with c_minus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -415,14 +415,14 @@ fn test_soundness_tamper_c_minus() {
             "Verification should fail with corrupted c_minus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e1_plus() {
-    println!("=== Testing soundness: tampering with e1_plus ===");
+    tracing::debug!("=== Testing soundness: tampering with e1_plus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -462,14 +462,14 @@ fn test_soundness_tamper_e1_plus() {
             "Verification should fail with corrupted e1_plus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e1_minus() {
-    println!("=== Testing soundness: tampering with e1_minus ===");
+    tracing::debug!("=== Testing soundness: tampering with e1_minus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -509,14 +509,14 @@ fn test_soundness_tamper_e1_minus() {
             "Verification should fail with corrupted e1_minus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e2_plus() {
-    println!("=== Testing soundness: tampering with e2_plus ===");
+    tracing::debug!("=== Testing soundness: tampering with e2_plus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -556,14 +556,14 @@ fn test_soundness_tamper_e2_plus() {
             "Verification should fail with corrupted e2_plus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e2_minus() {
-    println!("=== Testing soundness: tampering with e2_minus ===");
+    tracing::debug!("=== Testing soundness: tampering with e2_minus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -603,14 +603,14 @@ fn test_soundness_tamper_e2_minus() {
             "Verification should fail with corrupted e2_minus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_final_e1() {
-    println!("=== Testing soundness: tampering with final e1 ===");
+    tracing::debug!("=== Testing soundness: tampering with final e1 ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -650,14 +650,14 @@ fn test_soundness_tamper_final_e1() {
             "Verification should fail with corrupted final e1"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_final_e2() {
-    println!("=== Testing soundness: tampering with final e2 ===");
+    tracing::debug!("=== Testing soundness: tampering with final e2 ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -697,14 +697,14 @@ fn test_soundness_tamper_final_e2() {
             "Verification should fail with corrupted final e2"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_swap_d1_values() {
-    println!("=== Testing soundness: swapping d1_left and d1_right ===");
+    tracing::debug!("=== Testing soundness: swapping d1_left and d1_right ===");
     let domain = b"test_domain";
     let log_n = 8;
 
@@ -745,14 +745,14 @@ fn test_soundness_swap_d1_values() {
             "Verification should fail with swapped d1 values"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_swap_c_values() {
-    println!("=== Testing soundness: swapping c_plus and c_minus ===");
+    tracing::debug!("=== Testing soundness: swapping c_plus and c_minus ===");
     let domain = b"test_domain";
     let log_n = 8;
 
@@ -793,14 +793,14 @@ fn test_soundness_swap_c_values() {
             "Verification should fail with swapped c values"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scale_d1_values() {
-    println!("=== Testing soundness: scaling d1 values ===");
+    tracing::debug!("=== Testing soundness: scaling d1 values ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -844,14 +844,14 @@ fn test_soundness_scale_d1_values() {
             "Verification should fail with scaled values"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_multi_round_tampering() {
-    println!("=== Testing soundness: tampering across multiple rounds ===");
+    tracing::debug!("=== Testing soundness: tampering across multiple rounds ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -894,14 +894,14 @@ fn test_soundness_multi_round_tampering() {
             "Verification should fail with multi-round tampering"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_last_round() {
-    println!("=== Testing soundness: tampering with last round ===");
+    tracing::debug!("=== Testing soundness: tampering with last round ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -942,14 +942,14 @@ fn test_soundness_tamper_last_round() {
             "Verification should fail with last round tampering"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_maintain_sum_attack() {
-    println!("=== Testing soundness: maintaining sum but with wrong values ===");
+    tracing::debug!("=== Testing soundness: maintaining sum but with wrong values ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -997,7 +997,7 @@ fn test_soundness_maintain_sum_attack() {
             "Verification should fail even with maintained sum"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }

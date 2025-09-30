@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Script to generate SRS parameters for Dory
-# Usage: ./generate_srs.sh <max_log_n>
-# Example: ./generate_srs.sh 18
+# Script to generate URS parameters for Dory
+# Usage: ./generate_urs.sh <max_log_n>
+# Example: ./generate_urs.sh 18
 
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <max_log_n>"
@@ -29,7 +29,7 @@ if [ "$max_log_n" -gt 25 ]; then
     fi
 fi
 
-echo "Generating SRS for max_log_n = $max_log_n..."
-echo "Running: cargo run --release --bin generate_srs $max_log_n"
+echo "Generating URS for max_log_n = $max_log_n..."
+echo "Running: cargo run --release --bin generate_urs $max_log_n"
 
-cargo run --release --bin generate_srs "$max_log_n"
+cargo run --release --bin generate_urs "$max_log_n"

@@ -16,7 +16,8 @@ use dory::curve::{
 
 #[test]
 fn test_evaluation_proof_sigma_2() {
-    println!("===== Evaluation Proof Test (sigma=2) =====");
+    tracing_subscriber::fmt::init();
+    tracing::debug!("===== Evaluation Proof Test (sigma=2) =====");
     let total_start = Instant::now();
 
     // ----- Test Parameters -----
@@ -24,22 +25,22 @@ fn test_evaluation_proof_sigma_2() {
     let max_log_n: usize = 9;
     let sigma: usize = 5;
 
-    println!("Parameters:");
-    println!("  - Polynomial length: {}", length);
-    println!("  - Max log n: {}", max_log_n);
-    println!("  - Sigma: {}", sigma);
+    tracing::debug!("Parameters:");
+    tracing::debug!("  - Polynomial length: {}", length);
+    tracing::debug!("  - Max log n: {}", max_log_n);
+    tracing::debug!("  - Sigma: {}", sigma);
 
     let mut rng = test_rng();
     let domain = b"eval_proof_test_domain";
 
     // ----- Setup phase -----
-    println!("\n[1/4] Creating setup...");
+    tracing::debug!("\n[1/4] Creating setup...");
     let setup_start = Instant::now();
 
     // Calculate nu (polynomial degree)
     let nu = length.next_power_of_two().trailing_zeros() as usize;
-    println!("  - Nu (log of next power of 2 of length): {}", nu);
-    println!("  - 2^nu: {}", 1 << nu);
+    tracing::debug!("  - Nu (log of next power of 2 of length): {}", nu);
+    tracing::debug!("  - 2^nu: {}", 1 << nu);
 
     // Verify nu is valid for the polynomial length
     assert!(length <= 1 << nu, "Length should be at most 2^nu");
@@ -50,10 +51,10 @@ fn test_evaluation_proof_sigma_2() {
 
     // Create prover setup
     let prover_setup = ProverSetup::<ArkBn254Pairing>::new(&mut rng, max_log_n);
-    println!("Setup created in: {:?}", setup_start.elapsed());
+    tracing::debug!("Setup created in: {:?}", setup_start.elapsed());
 
     // ----- Polynomial and Evaluation Point Generation -----
-    println!("\n[2/4] Generating polynomial and evaluation point...");
+    tracing::debug!("\n[2/4] Generating polynomial and evaluation point...");
     let gen_start = Instant::now();
 
     // Generate random polynomial coefficients
@@ -66,12 +67,12 @@ fn test_evaluation_proof_sigma_2() {
         .take(nu)
         .collect::<Vec<_>>();
 
-    println!("  - Polynomial coefficient count: {}", a.len());
-    println!("  - Evaluation point dimension: {}", b_points.len());
-    println!("Vectors generated in: {:?}", gen_start.elapsed());
+    tracing::debug!("  - Polynomial coefficient count: {}", a.len());
+    tracing::debug!("  - Evaluation point dimension: {}", b_points.len());
+    tracing::debug!("Vectors generated in: {:?}", gen_start.elapsed());
 
     // ----- Create transcript -----
-    println!("\n[3/4] Creating transcript and generating proof...");
+    tracing::debug!("\n[3/4] Creating transcript and generating proof...");
     let transcript = ToyTranscript::new(domain);
 
     // ----- Generate evaluation proof -----
@@ -95,14 +96,14 @@ fn test_evaluation_proof_sigma_2() {
     );
 
     let proof_time = proof_start.elapsed();
-    println!("Proof generated in: {:?}", proof_time);
+    tracing::debug!("Proof generated in: {:?}", proof_time);
 
     // ----- Verify Proof Structure -----
-    println!("\n[4/4] Verifying proof structure...");
-    println!("Proof message counts:");
-    println!("  - First messages: {}", proof.first_messages.len());
-    println!("  - Second messages: {}", proof.second_messages.len());
-    println!(
+    tracing::debug!("\n[4/4] Verifying proof structure...");
+    tracing::debug!("Proof message counts:");
+    tracing::debug!("  - First messages: {}", proof.first_messages.len());
+    tracing::debug!("  - Second messages: {}", proof.second_messages.len());
+    tracing::debug!(
         "  - Scalar Final message: {:?}",
         proof.final_message.clone().unwrap()
     );
@@ -118,7 +119,7 @@ fn test_evaluation_proof_sigma_2() {
     );
 
     // ----- Verify the proof -----
-    println!("\n[5/5] Verifying evaluation proof...");
+    tracing::debug!("\n[5/5] Verifying evaluation proof...");
     let verify_start = Instant::now();
 
     // Compute proper commitment, batching factors, and evaluations
@@ -158,34 +159,35 @@ fn test_evaluation_proof_sigma_2() {
     );
 
     let verify_time = verify_start.elapsed();
-    println!("Verification completed in: {:?}", verify_time);
+    tracing::debug!("Verification completed in: {:?}", verify_time);
 
     // Check verification result
     match verification_result {
-        Ok(_) => println!("✓ Proof verification succeeded!"),
-        Err(e) => println!("✗ Proof verification failed: {:?}", e),
+        Ok(_) => tracing::debug!("Proof verification succeeded!"),
+        Err(e) => tracing::debug!("Proof verification failed: {:?}", e),
     }
 
     // ----- Test Summary -----
     let total_time = total_start.elapsed();
-    println!("\n===== Test Summary =====");
-    println!("Total test time: {:?}", total_time);
-    println!(
+    tracing::debug!("\n===== Test Summary =====");
+    tracing::debug!("Total test time: {:?}", total_time);
+    tracing::debug!(
         "Proof generation time: {:?} ({:.2}% of total)",
         proof_time,
         proof_time.as_secs_f64() / total_time.as_secs_f64() * 100.0
     );
-    println!(
+    tracing::debug!(
         "Verification time: {:?} ({:.2}% of total)",
         verify_time,
         verify_time.as_secs_f64() / total_time.as_secs_f64() * 100.0
     );
-    println!("Evaluation proof test completed successfully!");
+    tracing::debug!("Evaluation proof test completed successfully!");
 }
 
 #[test]
 fn test_evaluation_proof_verification_should_fail() {
-    println!("===== Evaluation Proof Failure Test =====");
+    tracing_subscriber::fmt::init();
+    tracing::debug!("===== Evaluation Proof Failure Test =====");
     let total_start = Instant::now();
 
     // ----- Test Parameters -----
@@ -193,24 +195,24 @@ fn test_evaluation_proof_verification_should_fail() {
     let max_log_n: usize = 9;
     let sigma: usize = 5;
 
-    println!("Parameters:");
-    println!("  - Polynomial length: {}", length);
-    println!("  - Max log n: {}", max_log_n);
-    println!("  - Sigma: {}", sigma);
+    tracing::debug!("Parameters:");
+    tracing::debug!("  - Polynomial length: {}", length);
+    tracing::debug!("  - Max log n: {}", max_log_n);
+    tracing::debug!("  - Sigma: {}", sigma);
 
     let mut rng = test_rng();
     let domain = b"eval_proof_test_domain";
 
     // ----- Setup phase -----
-    println!("\n[1/5] Creating setup...");
+    tracing::debug!("\n[1/5] Creating setup...");
     let setup_start = Instant::now();
 
     let nu = length.next_power_of_two().trailing_zeros() as usize;
     let prover_setup = ProverSetup::<ArkBn254Pairing>::new(&mut rng, max_log_n);
-    println!("Setup created in: {:?}", setup_start.elapsed());
+    tracing::debug!("Setup created in: {:?}", setup_start.elapsed());
 
     // ----- Polynomial and Evaluation Point Generation -----
-    println!("\n[2/5] Generating polynomial and evaluation point...");
+    tracing::debug!("\n[2/5] Generating polynomial and evaluation point...");
     let gen_start = Instant::now();
 
     let a = core::iter::repeat_with(|| Fr::rand(&mut rng))
@@ -221,10 +223,10 @@ fn test_evaluation_proof_verification_should_fail() {
         .take(nu)
         .collect::<Vec<_>>();
 
-    println!("Vectors generated in: {:?}", gen_start.elapsed());
+    tracing::debug!("Vectors generated in: {:?}", gen_start.elapsed());
 
     // ----- Create transcript and generate proof -----
-    println!("\n[3/5] Generating proof...");
+    tracing::debug!("\n[3/5] Generating proof...");
     let transcript = ToyTranscript::new(domain);
     let proof_start = Instant::now();
 
@@ -245,10 +247,10 @@ fn test_evaluation_proof_verification_should_fail() {
     );
 
     let proof_time = proof_start.elapsed();
-    println!("Proof generated in: {:?}", proof_time);
+    tracing::debug!("Proof generated in: {:?}", proof_time);
 
     // ----- Test Case 2: Tamper with commitment -----
-    println!("\n[5/5] Testing tampered commitment...");
+    tracing::debug!("\n[5/5] Testing tampered commitment...");
     {
         let verify_start = Instant::now();
 
@@ -287,7 +289,7 @@ fn test_evaluation_proof_verification_should_fail() {
             verify_transcript,
         );
 
-        println!(
+        tracing::debug!(
             "Tampered commitment verification time: {:?}",
             verify_start.elapsed()
         );
@@ -295,19 +297,20 @@ fn test_evaluation_proof_verification_should_fail() {
             verification_result.is_err(),
             "Verification should fail with tampered commitment"
         );
-        println!("✓ Verification correctly failed with tampered commitment");
+        tracing::debug!("✓ Verification correctly failed with tampered commitment");
     }
 
     // ----- Test Summary -----
     let total_time = total_start.elapsed();
-    println!("\n===== Test Summary =====");
-    println!("Total test time: {:?}", total_time);
-    println!("All failure tests completed successfully!");
+    tracing::debug!("\n===== Test Summary =====");
+    tracing::debug!("Total test time: {:?}", total_time);
+    tracing::debug!("All failure tests completed successfully!");
 }
 
 #[test]
 fn test_evaluation_proof_tampered_messages_should_fail() {
-    println!("===== Evaluation Proof Tampered Messages Test =====");
+    tracing_subscriber::fmt::init();
+    tracing::debug!("===== Evaluation Proof Tampered Messages Test =====");
     let total_start = Instant::now();
 
     // ----- Test Parameters -----
@@ -315,24 +318,24 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
     let max_log_n: usize = 9;
     let sigma: usize = 5;
 
-    println!("Parameters:");
-    println!("  - Polynomial length: {}", length);
-    println!("  - Max log n: {}", max_log_n);
-    println!("  - Sigma: {}", sigma);
+    tracing::debug!("Parameters:");
+    tracing::debug!("  - Polynomial length: {}", length);
+    tracing::debug!("  - Max log n: {}", max_log_n);
+    tracing::debug!("  - Sigma: {}", sigma);
 
     let mut rng = test_rng();
     let domain = b"eval_proof_test_domain";
 
     // ----- Setup phase -----
-    println!("\n[1/4] Creating setup...");
+    tracing::debug!("\n[1/4] Creating setup...");
     let setup_start = Instant::now();
 
     let nu = length.next_power_of_two().trailing_zeros() as usize;
     let prover_setup = ProverSetup::<ArkBn254Pairing>::new(&mut rng, max_log_n);
-    println!("Setup created in: {:?}", setup_start.elapsed());
+    tracing::debug!("Setup created in: {:?}", setup_start.elapsed());
 
     // ----- Polynomial and Evaluation Point Generation -----
-    println!("\n[2/4] Generating polynomial and evaluation point...");
+    tracing::debug!("\n[2/4] Generating polynomial and evaluation point...");
     let gen_start = Instant::now();
 
     let a = core::iter::repeat_with(|| Fr::rand(&mut rng))
@@ -343,10 +346,10 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
         .take(nu)
         .collect::<Vec<_>>();
 
-    println!("Vectors generated in: {:?}", gen_start.elapsed());
+    tracing::debug!("Vectors generated in: {:?}", gen_start.elapsed());
 
     // ----- Create transcript and generate proof -----
-    println!("\n[3/4] Generating proof...");
+    tracing::debug!("\n[3/4] Generating proof...");
     let transcript = ToyTranscript::new(domain);
     let proof_start = Instant::now();
 
@@ -367,10 +370,10 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
     );
 
     let proof_time = proof_start.elapsed();
-    println!("Proof generated in: {:?}", proof_time);
+    tracing::debug!("Proof generated in: {:?}", proof_time);
 
     // ----- Test: Tamper with proof messages -----
-    println!("\n[4/4] Testing tampered proof messages...");
+    tracing::debug!("\n[4/4] Testing tampered proof messages...");
     let verify_start = Instant::now();
 
     // Get correct verification data (no tampering with verification data)
@@ -387,13 +390,13 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
 
     // Tamper with a first message if available
     if !tampered_proof.first_messages.is_empty() {
-        println!("Tampering with first message d1_left...");
+        tracing::debug!("Tampering with first message d1_left...");
         tampered_proof.first_messages[0].d1_left = Fq12::rand(&mut rng);
     }
 
     // Also tamper with a second message if available
     if !tampered_proof.second_messages.is_empty() {
-        println!("Tampering with second message c_plus...");
+        tracing::debug!("Tampering with second message c_plus...");
         tampered_proof.second_messages[0].c_plus = Fq12::rand(&mut rng);
     }
 
@@ -420,7 +423,7 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
     );
 
     let verify_time = verify_start.elapsed();
-    println!(
+    tracing::debug!(
         "Tampered proof messages verification time: {:?}",
         verify_time
     );
@@ -430,21 +433,21 @@ fn test_evaluation_proof_tampered_messages_should_fail() {
         verification_result.is_err(),
         "Verification should fail with tampered proof messages"
     );
-    println!("✓ Verification correctly failed with tampered proof messages");
+    tracing::debug!("✓ Verification correctly failed with tampered proof messages");
 
     // ----- Test Summary -----
     let total_time = total_start.elapsed();
-    println!("\n===== Test Summary =====");
-    println!("Total test time: {:?}", total_time);
-    println!(
+    tracing::debug!("\n===== Test Summary =====");
+    tracing::debug!("Total test time: {:?}", total_time);
+    tracing::debug!(
         "Proof generation time: {:?} ({:.2}% of total)",
         proof_time,
         proof_time.as_secs_f64() / total_time.as_secs_f64() * 100.0
     );
-    println!(
+    tracing::debug!(
         "Verification time: {:?} ({:.2}% of total)",
         verify_time,
         verify_time.as_secs_f64() / total_time.as_secs_f64() * 100.0
     );
-    println!("Tampered proof messages test completed successfully!");
+    tracing::debug!("Tampered proof messages test completed successfully!");
 }

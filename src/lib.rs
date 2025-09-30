@@ -36,10 +36,6 @@ pub use vmv::*;
 /// This function creates both the prover setup (with all necessary generators)
 /// and the derived verifier setup (with precomputed verification elements).
 ///
-/// If `srs_filename` is provided, it will attempt to load from that file first.
-/// If the file doesn't exist or loading fails, it will generate new parameters
-/// and save them to the specified file.
-///
 /// # Parameters
 /// - `rng`: Random number generator for setup generation
 /// - `max_log_n`: Maximum log of the polynomial size (n = 2^max_log_n)
@@ -55,30 +51,29 @@ pub fn setup<E: Pairing, R: RngCore>(
     (prover_setup, verifier_setup)
 }
 
-/// Generate prover and verifier setups with optional SRS file loading/saving
+/// Generate prover and verifier setups with optional URS file loading/saving
 ///
-/// If `srs_filename` is provided, it will attempt to load from that file first.
+/// If `urs_filename` is provided, it will attempt to load from that file first.
 /// If the file doesn't exist or loading fails, it will generate new parameters
 /// and save them to the specified file using the new combined format.
 ///
 /// # Parameters
 /// - `rng`: Random number generator for setup generation (used only if file doesn't exist)
 /// - `max_log_n`: Maximum log of the polynomial size (n = 2^max_log_n)
-/// - `srs_filename`: Optional filename to load/save SRS parameters
+/// - `urs_filename`: Optional filename to load/save URS parameters
 ///
 /// # Returns
 /// A tuple containing (ProverSetup, VerifierSetup)
-pub fn setup_with_srs_file<E: Pairing, R: RngCore>(
+pub fn setup_with_urs_file<E: Pairing, R: RngCore>(
     rng: R,
     max_log_n: usize,
-    srs_filename: Option<&str>,
+    urs_filename: Option<&str>,
 ) -> (ProverSetup<E>, VerifierSetup<E>)
 where
 {
-    match srs_filename {
+    match urs_filename {
         Some(filename) => {
-            println!("trying to get srs...");
-            println!("About to call load_from_file...");
+            tracing::info!("Attempting to load URS from file: {}", filename);
 
             // Try to load both prover and verifier setups from combined file
             match (
@@ -86,13 +81,13 @@ where
                 VerifierSetup::load_from_file(filename),
             ) {
                 (Ok(prover_setup), Ok(verifier_setup)) => {
-                    println!("✓ Loaded existing combined SRS from {}", filename);
+                    tracing::info!("Loaded existing combined URS from {}", filename);
                     (prover_setup, verifier_setup)
                 }
                 (Ok(prover_setup), Err(_)) => {
                     // File exists but no verifier setup (legacy format), generate verifier
-                    println!(
-                        "✓ Loaded prover setup from {}, generating verifier setup...",
+                    tracing::info!(
+                        "Loaded prover setup from {}, generating verifier setup",
                         filename
                     );
                     let verifier_setup = prover_setup.to_verifier_setup();
@@ -100,27 +95,24 @@ where
                 }
                 (Err(e), _) => {
                     // File doesn't exist or failed to load, generate new and save
-                    println!("Load failed: {}", e);
-                    println!(
-                        "Generating new SRS for max_log_n = {} (this may take a while...)",
+                    tracing::warn!("Failed to load URS: {}", e);
+                    tracing::info!(
+                        "Generating new URS for max_log_n = {} (this may take a while)",
                         max_log_n
                     );
                     let prover_setup = ProverSetup::new(rng, max_log_n);
                     let verifier_setup = prover_setup.to_verifier_setup();
 
-                    println!("✓ Generated new SRS, now saving combined format...");
+                    tracing::info!("Generated new URS, saving combined format");
                     if let Err(e) = prover_setup.save_combined_to_file(filename) {
-                        println!(
-                            "Warning: Failed to save combined SRS to {}: {}",
-                            filename, e
-                        );
+                        tracing::warn!("Failed to save combined URS to {}: {}", filename, e);
                     }
                     (prover_setup, verifier_setup)
                 }
             }
         }
         None => {
-            println!("No filename provided, generating new SRS...");
+            tracing::info!("No filename provided, generating new URS");
             let prover_setup = ProverSetup::new(rng, max_log_n);
             let verifier_setup = prover_setup.to_verifier_setup();
             (prover_setup, verifier_setup)
@@ -128,23 +120,23 @@ where
     }
 }
 
-/// Generate and save SRS parameters to disk with standard naming
+/// Generate and save URS parameters to disk with standard naming
 ///
-/// Creates a file named `k_{max_log_n}.srs` containing both prover and verifier setup parameters.
+/// Creates a file named `k_{max_log_n}.urs` containing both prover and verifier setup parameters.
 ///
 /// # Parameters
 /// - `rng`: Random number generator for setup generation
 /// - `max_log_n`: Maximum log of the polynomial size (n = 2^max_log_n)
 ///
 /// # Returns
-/// The filename where the SRS was saved
-pub fn generate_srs<E: Pairing, R: RngCore>(
+/// The filename where the URS was saved
+pub fn generate_urs<E: Pairing, R: RngCore>(
     rng: R,
     max_log_n: usize,
 ) -> Result<String, Box<dyn std::error::Error>>
 where
 {
-    let filename = format!("k_{}.srs", max_log_n);
+    let filename = format!("k_{}.urs", max_log_n);
     let prover_setup = ProverSetup::<E>::new(rng, max_log_n);
     prover_setup.save_combined_to_file(&filename)?;
     Ok(filename)

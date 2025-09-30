@@ -48,14 +48,6 @@ ark-bn254 = { path = "/Users/mgeorghiades/a16z/arkworks-algebra/curves/bn254" }
 # default = ["recursion"]
 recursion = []
 
-[lints.rust]
-missing_docs = "warn"
-
-[lints.clippy]
-pedantic = { level = "warn", priority = -1 }
-allow_attributes = "warn"
-doc_markdown = "allow"
-missing_docs_in_private_items = "warn"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "katex-header.html"]

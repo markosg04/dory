@@ -823,7 +823,7 @@ where
         }
 
         if self.setup_delta_1l.as_ref().map_or(true, |v| v.is_empty()) {
-            println!("WARNING: No setup delta values available for recursion");
+            tracing::warn!("No setup delta values available for recursion");
             return;
         }
 
@@ -832,14 +832,15 @@ where
             || num_rounds != self.first_challenges.len()
             || num_rounds != self.second_challenges.len()
         {
-            println!("WARNING: Message/challenge count mismatch");
+            tracing::warn!("Message/challenge count mismatch");
             return;
         }
 
         let mut nu = initial_nu;
-        println!(
-            "DEBUG: finalize_for_recursion starting with initial_nu={}, num_rounds={}",
-            initial_nu, num_rounds
+        tracing::debug!(
+            "finalize_for_recursion starting with initial_nu={}, num_rounds={}",
+            initial_nu,
+            num_rounds
         );
 
         // We need to mimic the verifier calculations of d_1, d_2, e_1, e_2 in **same order**
@@ -856,7 +857,7 @@ where
             let alpha = self.second_challenges[round_idx].alpha.clone();
             let alpha_inv = self.second_challenges[round_idx].alpha_inverse.clone();
 
-            println!("DEBUG: Processing round {} with nu={}", round_idx, nu);
+            tracing::debug!("Processing round {} with nu={}", round_idx, nu);
 
             // 1. Operations from dory_reduce_verify_update_c
             // The verifier does: d_2.scale(&beta), d_1.scale(&beta_inv), c_plus.scale(&alpha), c_minus.scale(&alpha_inv)
@@ -939,8 +940,8 @@ where
                 .as_ref()
                 .map_or(false, |v| nu >= v.len())
             {
-                println!(
-                    "WARNING: nu={} >= setup_delta_1l.len()={}",
+                tracing::warn!(
+                    "nu={} >= setup_delta_1l.len()={}",
                     nu,
                     self.setup_delta_1l.as_ref().unwrap().len()
                 );
@@ -1086,20 +1087,20 @@ where
             }
         }
 
-        println!(
-            "DEBUG: finalize_for_recursion complete, tracked {} GT operations",
+        tracing::debug!(
+            "finalize_for_recursion complete, tracked {} GT operations",
             self.gt_exponentiation_steps.as_ref().map_or(0, |v| v.len())
         );
     }
 
     /// Print statistics about the proof structure
     pub fn print_proof_stats(&self) {
-        println!("\n=== PROOF STATISTICS ===");
-        println!("Number of rounds: {}", self.first_messages.len());
-        println!("First reduce messages: {}", self.first_messages.len());
-        println!("Second reduce messages: {}", self.second_messages.len());
-        println!("Has final message: {}", self.final_message.is_some());
-        println!("Has VMV message: {}", self.vmv_message.is_some());
+        tracing::debug!("=== PROOF STATISTICS ===");
+        tracing::debug!("Number of rounds: {}", self.first_messages.len());
+        tracing::debug!("First reduce messages: {}", self.first_messages.len());
+        tracing::debug!("Second reduce messages: {}", self.second_messages.len());
+        tracing::debug!("Has final message: {}", self.final_message.is_some());
+        tracing::debug!("Has VMV message: {}", self.vmv_message.is_some());
 
         // Calculate total proof elements
         let total_g1_elements = self.first_messages.iter().map(|_m| 1).sum::<usize>() + // e1_beta per round
@@ -1115,13 +1116,13 @@ where
                                self.second_messages.iter().map(|_m| 2).sum::<usize>() + // c_plus + c_minus per round
                                if self.vmv_message.is_some() { 2 } else { 0 }; // vmv c + d2
 
-        println!("Total G1 elements in proof: {}", total_g1_elements);
-        println!("Total G2 elements in proof: {}", total_g2_elements);
-        println!("Total GT elements in proof: {}", total_gt_elements);
-        println!(
+        tracing::debug!("Total G1 elements in proof: {}", total_g1_elements);
+        tracing::debug!("Total G2 elements in proof: {}", total_g2_elements);
+        tracing::debug!("Total GT elements in proof: {}", total_gt_elements);
+        tracing::debug!(
             "Total proof elements: {}",
             total_g1_elements + total_g2_elements + total_gt_elements
         );
-        println!("========================\n");
+        tracing::debug!("========================");
     }
 }

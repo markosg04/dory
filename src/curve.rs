@@ -20,7 +20,7 @@ use jolt_optimizations::{
 use rayon::prelude::*;
 
 #[cfg(feature = "recursion")]
-use jolt_optimizations::{pow_with_steps_le, ExponentiationSteps};
+use jolt_optimizations::ExponentiationSteps;
 
 /// Create a fixed RNG for deterministic tests
 pub fn test_rng() -> StdRng {
@@ -329,7 +329,7 @@ impl Group for Fq12 {
 
     #[cfg(feature = "recursion")]
     fn scale_with_steps(&self, k: &Self::Scalar) -> (Self, ExponentiationSteps) {
-        let steps = pow_with_steps_le(*self, *k);
+        let steps = ExponentiationSteps::new(*self, *k);
         (steps.result, steps)
     }
 }
@@ -641,8 +641,8 @@ impl G1Cache {
     pub fn print_memory_stats(&self) {
         use std::mem;
 
-        println!("=== G1 Cache Memory Usage ===");
-        println!("Number of entries: {}", self.entries.len());
+        tracing::debug!("=== G1 Cache Memory Usage ===");
+        tracing::debug!("Number of entries: {}", self.entries.len());
 
         // Calculate entries vector memory
         let entries_capacity = self.entries.capacity();
@@ -650,26 +650,26 @@ impl G1Cache {
         let entries_allocated = entries_capacity * entry_size;
         let entries_used = self.entries.len() * entry_size;
 
-        println!("\nEntries Vector:");
-        println!("  Entry struct size: {} bytes", entry_size);
-        println!("  Capacity: {} entries", entries_capacity);
-        println!("  Used: {} entries", self.entries.len());
-        println!(
+        tracing::debug!("Entries Vector:");
+        tracing::debug!("  Entry struct size: {} bytes", entry_size);
+        tracing::debug!("  Capacity: {} entries", entries_capacity);
+        tracing::debug!("  Used: {} entries", self.entries.len());
+        tracing::debug!(
             "  Allocated memory: {} bytes ({:.2} MB)",
             entries_allocated,
             entries_allocated as f64 / 1_048_576.0
         );
-        println!(
+        tracing::debug!(
             "  Used memory: {} bytes ({:.2} MB)",
             entries_used,
             entries_used as f64 / 1_048_576.0
         );
 
         // Get actual sizes of types
-        println!("\nType sizes:");
-        println!("  G1Affine: {} bytes", mem::size_of::<G1Affine>());
-        println!("  G1Projective: {} bytes", mem::size_of::<G1Projective>());
-        println!(
+        tracing::debug!("Type sizes:");
+        tracing::debug!("  G1Affine: {} bytes", mem::size_of::<G1Affine>());
+        tracing::debug!("  G1Projective: {} bytes", mem::size_of::<G1Projective>());
+        tracing::debug!(
             "  BnG1Prepared: {} bytes",
             mem::size_of::<BnG1Prepared<ark_bn254::Config>>()
         );
@@ -692,16 +692,16 @@ impl G1Cache {
             let windowed_allocated = tables_capacity * estimated_table_size;
             let windowed_used = tables_len * estimated_table_size;
 
-            println!("\nWindowed2Signed2Data:");
-            println!("  Tables count: {}", tables_len);
-            println!("  Tables capacity: {}", tables_capacity);
-            println!("  Estimated per table: {} bytes", estimated_table_size);
-            println!(
+            tracing::debug!("Windowed2Signed2Data:");
+            tracing::debug!("  Tables count: {}", tables_len);
+            tracing::debug!("  Tables capacity: {}", tables_capacity);
+            tracing::debug!("  Estimated per table: {} bytes", estimated_table_size);
+            tracing::debug!(
                 "  Allocated: {} bytes ({:.2} MB)",
                 windowed_allocated,
                 windowed_allocated as f64 / 1_048_576.0
             );
-            println!(
+            tracing::debug!(
                 "  Used: {} bytes ({:.2} MB)",
                 windowed_used,
                 windowed_used as f64 / 1_048_576.0
@@ -709,17 +709,17 @@ impl G1Cache {
 
             windowed_memory += windowed_allocated;
         } else {
-            println!("\nNo windowed precomputed data");
+            tracing::debug!("No windowed precomputed data");
         }
 
         // Total memory
         let total_allocated = entries_allocated + windowed_memory + mem::size_of::<Self>();
-        println!(
-            "\n>>> G1 Cache Total Allocated: {} bytes ({:.2} MB)",
+        tracing::debug!(
+            ">>> G1 Cache Total Allocated: {} bytes ({:.2} MB)",
             total_allocated,
             total_allocated as f64 / 1_048_576.0
         );
-        println!("=====================================\n");
+        tracing::debug!("=====================================");
     }
 }
 
@@ -889,8 +889,8 @@ impl G2Cache {
     pub fn print_memory_stats(&self) {
         use std::mem;
 
-        println!("=== G2 Cache Memory Usage ===");
-        println!("Number of entries: {}", self.entries.len());
+        tracing::debug!("=== G2 Cache Memory Usage ===");
+        tracing::debug!("Number of entries: {}", self.entries.len());
 
         // Calculate entries vector memory
         let entries_capacity = self.entries.capacity();
@@ -898,26 +898,26 @@ impl G2Cache {
         let entries_allocated = entries_capacity * entry_size;
         let entries_used = self.entries.len() * entry_size;
 
-        println!("\nEntries Vector:");
-        println!("  Entry struct size: {} bytes", entry_size);
-        println!("  Capacity: {} entries", entries_capacity);
-        println!("  Used: {} entries", self.entries.len());
-        println!(
+        tracing::debug!("Entries Vector:");
+        tracing::debug!("  Entry struct size: {} bytes", entry_size);
+        tracing::debug!("  Capacity: {} entries", entries_capacity);
+        tracing::debug!("  Used: {} entries", self.entries.len());
+        tracing::debug!(
             "  Allocated memory: {} bytes ({:.2} MB)",
             entries_allocated,
             entries_allocated as f64 / 1_048_576.0
         );
-        println!(
+        tracing::debug!(
             "  Used memory: {} bytes ({:.2} MB)",
             entries_used,
             entries_used as f64 / 1_048_576.0
         );
 
         // Get actual sizes of types
-        println!("\nType sizes:");
-        println!("  G2Affine: {} bytes", mem::size_of::<G2Affine>());
-        println!("  G2Projective: {} bytes", mem::size_of::<G2Projective>());
-        println!(
+        tracing::debug!("Type sizes:");
+        tracing::debug!("  G2Affine: {} bytes", mem::size_of::<G2Affine>());
+        tracing::debug!("  G2Projective: {} bytes", mem::size_of::<G2Projective>());
+        tracing::debug!(
             "  BnG2Prepared: {} bytes",
             mem::size_of::<BnG2Prepared<ark_bn254::Config>>()
         );
@@ -937,16 +937,16 @@ impl G2Cache {
             let windowed_allocated = tables_capacity * estimated_table_size;
             let windowed_used = tables_len * estimated_table_size;
 
-            println!("\nWindowed2Signed4Data:");
-            println!("  Tables count: {}", tables_len);
-            println!("  Tables capacity: {}", tables_capacity);
-            println!("  Estimated per table: {} bytes", estimated_table_size);
-            println!(
+            tracing::debug!("Windowed2Signed4Data:");
+            tracing::debug!("  Tables count: {}", tables_len);
+            tracing::debug!("  Tables capacity: {}", tables_capacity);
+            tracing::debug!("  Estimated per table: {} bytes", estimated_table_size);
+            tracing::debug!(
                 "  Allocated: {} bytes ({:.2} MB)",
                 windowed_allocated,
                 windowed_allocated as f64 / 1_048_576.0
             );
-            println!(
+            tracing::debug!(
                 "  Used: {} bytes ({:.2} MB)",
                 windowed_used,
                 windowed_used as f64 / 1_048_576.0
@@ -954,7 +954,7 @@ impl G2Cache {
 
             windowed_memory += windowed_allocated;
         } else {
-            println!("\nNo windowed precomputed data");
+            tracing::debug!("No windowed precomputed data");
         }
 
         // Calculate g_fin GLV tables memory
@@ -971,16 +971,16 @@ impl G2Cache {
             let glv_allocated = glv_tables_capacity * shamir_table_size;
             let glv_used = glv_tables_len * shamir_table_size;
 
-            println!("\nG_fin GLV Tables (PrecomputedShamir4Data):");
-            println!("  Tables count: {}", glv_tables_len);
-            println!("  Tables capacity: {}", glv_tables_capacity);
-            println!("  Per table: {} bytes (15 G2Projective)", shamir_table_size);
-            println!(
+            tracing::debug!("G_fin GLV Tables (PrecomputedShamir4Data):");
+            tracing::debug!("  Tables count: {}", glv_tables_len);
+            tracing::debug!("  Tables capacity: {}", glv_tables_capacity);
+            tracing::debug!("  Per table: {} bytes (15 G2Projective)", shamir_table_size);
+            tracing::debug!(
                 "  Allocated: {} bytes ({:.2} MB)",
                 glv_allocated,
                 glv_allocated as f64 / 1_048_576.0
             );
-            println!(
+            tracing::debug!(
                 "  Used: {} bytes ({:.2} MB)",
                 glv_used,
                 glv_used as f64 / 1_048_576.0
@@ -988,18 +988,18 @@ impl G2Cache {
 
             glv_memory += glv_allocated;
         } else {
-            println!("\nNo g_fin GLV tables");
+            tracing::debug!("No g_fin GLV tables");
         }
 
         // Total memory
         let total_allocated =
             entries_allocated + windowed_memory + glv_memory + mem::size_of::<Self>();
-        println!(
-            "\n>>> G2 Cache Total Allocated: {} bytes ({:.2} MB)",
+        tracing::debug!(
+            ">>> G2 Cache Total Allocated: {} bytes ({:.2} MB)",
             total_allocated,
             total_allocated as f64 / 1_048_576.0
         );
-        println!("=====================================\n");
+        tracing::debug!("=====================================");
     }
 }
 
@@ -1173,7 +1173,7 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
 
         // Check if we have cached GLV tables for g_fin
         if let Some(glv_tables) = g2_cache.and_then(|cache| cache.get_g_fin_glv_tables()) {
-            // println!("USING PRECOMPUTED GLV TABLES FOR G_FIN!");
+            tracing::debug!("Using precomputed GLV tables for g_fin");
             // Use precomputed GLV tables
             let results_proj: Vec<G2Projective> = scalars
                 .par_iter()

@@ -16,7 +16,8 @@ use dory::curve::{test_rng, ArkBn254Pairing, G2AffineWrapper, OptimizedMsmG1, Op
 
 #[test]
 fn test_inner_product_verify_should_fail() {
-    println!("Starting failing verification test...");
+    tracing_subscriber::fmt::init();
+    tracing::debug!("Starting failing verification test...");
     let total_start = Instant::now();
 
     // Create deterministic RNG for testing
@@ -26,15 +27,15 @@ fn test_inner_product_verify_should_fail() {
     let domain = b"test_domain";
     let log_n = 9; // Use a smaller size for faster testing
     let vector_size = 1 << log_n;
-    println!("Vector size: {}", vector_size);
+    tracing::debug!("Vector size: {}", vector_size);
 
     // ----- Setup phase -----
-    println!("Creating setup...");
+    tracing::debug!("Creating setup...");
     let prover_setup = ProverSetup::<ArkBn254Pairing>::new(&mut rng, 2 * log_n);
     let verifier_setup = prover_setup.to_verifier_setup();
 
     // ----- Vector generation phase -----
-    println!("Generating random vectors...");
+    tracing::debug!("Generating random vectors...");
     // Generate random vectors for prover state
     let v1: Vec<G1Affine> = (0..vector_size).map(|_| G1Affine::rand(&mut rng)).collect();
     let v2: Vec<G2AffineWrapper> = (0..vector_size)
@@ -44,7 +45,7 @@ fn test_inner_product_verify_should_fail() {
     let s2: Vec<Fr> = (0..vector_size).map(|_| Fr::rand(&mut rng)).collect();
 
     // ----- Initial state calculation phase -----
-    println!("Creating initial states...");
+    tracing::debug!("Creating initial states...");
     // Create initial state
     let prover_state = DoryProverState::new(v1.clone(), v2.clone(), s1.clone(), s2.clone(), log_n);
 
@@ -72,7 +73,7 @@ fn test_inner_product_verify_should_fail() {
     );
 
     // ----- Proof generation phase -----
-    println!("Generating proof...");
+    tracing::debug!("Generating proof...");
 
     // Create proof builder
     #[cfg(feature = "recursion")]
@@ -102,18 +103,18 @@ fn test_inner_product_verify_should_fail() {
     );
 
     // ----- Tamper with the proof -----
-    println!("\n=== Testing tampered proofs ===");
+    tracing::debug!("\n=== Testing tampered proofs ===");
 
     // Test Case 1: Tamper with a first message
     {
-        println!("\n--- Test 1: Tampering with first reduce message ---");
+        tracing::debug!("\n--- Test 1: Tampering with first reduce message ---");
 
         // Clone the proof builder and tamper with it
         let mut tampered_proof_builder = proof_builder.clone();
 
         if !tampered_proof_builder.first_messages.is_empty() {
             // Corrupt d1_left in the first message
-            println!("Corrupting d1_left in first message...");
+            tracing::debug!("Corrupting d1_left in first message...");
             let corrupt_d1_left = Fq12::rand(&mut rng);
             tampered_proof_builder.first_messages[0].d1_left = corrupt_d1_left;
 
@@ -131,7 +132,7 @@ fn test_inner_product_verify_should_fail() {
             );
 
             // Test verification
-            println!("Verifying corrupted proof...");
+            tracing::debug!("Verifying corrupted proof...");
             // Recreate verifier state since it doesn't implement Clone
             let verifier_state_copy = DoryVerifierState::<ArkBn254Pairing>::new_with_s(
                 c,
@@ -146,17 +147,17 @@ fn test_inner_product_verify_should_fail() {
             let result =
                 inner_product_verify(verify_builder, verifier_state_copy, &verifier_setup, log_n);
 
-            println!("Verification result: {:?}", result);
+            tracing::debug!("Verification result: {:?}", result);
             assert!(
                 result.is_err(),
                 "Corrupted first message should cause verification to fail"
             );
             if let Err(round) = result {
-                println!("Verification correctly failed at round: {}", round);
+                tracing::debug!("Verification correctly failed at round: {}", round);
             }
         }
     }
 
-    println!("Total test time: {:?}", total_start.elapsed());
-    println!("All tests completed successfully!");
+    tracing::debug!("Total test time: {:?}", total_start.elapsed());
+    tracing::debug!("All tests completed successfully!");
 }

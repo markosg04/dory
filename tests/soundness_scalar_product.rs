@@ -45,7 +45,8 @@ fn setup_scalar_product_test_environment(
 
 #[test]
 fn test_soundness_scalar_product_wrong_e1() {
-    println!("=== Testing soundness: scalar product with wrong E1 ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product with wrong E1 ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -68,7 +69,7 @@ fn test_soundness_scalar_product_wrong_e1() {
 
     // Tamper with final scalar product message E1
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Tampering with scalar product E1...");
+        tracing::debug!("Tampering with scalar product E1...");
         final_msg.e1 = G1Affine::rand(&mut rng);
 
         let verify_builder =
@@ -80,14 +81,15 @@ fn test_soundness_scalar_product_wrong_e1() {
 
         assert!(result.is_err(), "Verification should fail with wrong E1");
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_wrong_e2() {
-    println!("=== Testing soundness: scalar product with wrong E2 ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product with wrong E2 ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -110,7 +112,7 @@ fn test_soundness_scalar_product_wrong_e2() {
 
     // Tamper with final scalar product message E2
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Tampering with scalar product E2...");
+        tracing::debug!("Tampering with scalar product E2...");
         final_msg.e2 = G2AffineWrapper::from(G2Affine::rand(&mut rng));
 
         let verify_builder =
@@ -122,14 +124,15 @@ fn test_soundness_scalar_product_wrong_e2() {
 
         assert!(result.is_err(), "Verification should fail with wrong E2");
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_both_wrong() {
-    println!("=== Testing soundness: scalar product with both E1 and E2 wrong ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product with both E1 and E2 wrong ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -152,7 +155,7 @@ fn test_soundness_scalar_product_both_wrong() {
 
     // Tamper with both E1 and E2
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Tampering with both scalar product E1 and E2...");
+        tracing::debug!("Tampering with both scalar product E1 and E2...");
         final_msg.e1 = G1Affine::rand(&mut rng);
         final_msg.e2 = G2AffineWrapper::from(G2Affine::rand(&mut rng));
 
@@ -168,14 +171,15 @@ fn test_soundness_scalar_product_both_wrong() {
             "Verification should fail with both E1 and E2 wrong"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_scaled_values() {
-    println!("=== Testing soundness: scalar product with scaled E1 and E2 ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product with scaled E1 and E2 ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -198,7 +202,7 @@ fn test_soundness_scalar_product_scaled_values() {
 
     // Scale both E1 and E2 by some factor
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Scaling scalar product E1 and E2...");
+        tracing::debug!("Scaling scalar product E1 and E2...");
         let scale = Fr::rand(&mut rng);
         let scale_inv = scale.inv().unwrap();
 
@@ -218,14 +222,15 @@ fn test_soundness_scalar_product_scaled_values() {
             "Verification should fail with scaled E1 and E2"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_relationship_attack() {
-    println!("=== Testing soundness: scalar product relationship attack ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product relationship attack ===");
     let domain = b"scalar_product_test";
     let log_n = 8;
 
@@ -261,7 +266,7 @@ fn test_soundness_scalar_product_relationship_attack() {
     // Mix scalar product messages from different proofs
     if let (Some(final_msg1), Some(final_msg2)) = (&proof1.final_message, &mut proof2.final_message)
     {
-        println!("Mixing scalar product messages from different proofs...");
+        tracing::debug!("Mixing scalar product messages from different proofs...");
         // Take E1 from proof1 but keep E2 from proof2
         final_msg2.e1 = final_msg1.e1.clone();
 
@@ -277,14 +282,15 @@ fn test_soundness_scalar_product_relationship_attack() {
             "Verification should fail with mixed scalar product messages"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_pairing_check() {
-    println!("=== Testing soundness: scalar product pairing equation check ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product pairing equation check ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -307,7 +313,7 @@ fn test_soundness_scalar_product_pairing_check() {
 
     // Create E1 and E2 that don't satisfy the pairing equation
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Creating E1 and E2 that violate pairing equation...");
+        tracing::debug!("Creating E1 and E2 that violate pairing equation...");
 
         // Use random elements that are unlikely to satisfy the verification equation
         let random_e1 = G1Affine::rand(&mut rng);
@@ -328,14 +334,15 @@ fn test_soundness_scalar_product_pairing_check() {
             "Verification should fail when pairing equation is not satisfied"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_after_valid_rounds() {
-    println!("=== Testing soundness: tampering scalar product after valid rounds ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: tampering scalar product after valid rounds ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -358,7 +365,7 @@ fn test_soundness_scalar_product_after_valid_rounds() {
 
     // Ensure all rounds are valid but tamper only with final scalar product
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Tampering only the final scalar product message...");
+        tracing::debug!("Tampering only the final scalar product message...");
 
         // Make a small change to E1
         let tampered_e1 = final_msg.e1.add(&G1Affine::rand(&mut rng));
@@ -376,7 +383,7 @@ fn test_soundness_scalar_product_after_valid_rounds() {
             "Verification should fail even with small tampering in scalar product"
         );
         if let Err(round) = result {
-            println!(
+            tracing::debug!(
                 "✓ Verification correctly failed at round: {} (should be final round)",
                 round
             );
@@ -390,7 +397,8 @@ fn test_soundness_scalar_product_after_valid_rounds() {
 
 #[test]
 fn test_soundness_scalar_product_identity_elements() {
-    println!("=== Testing soundness: scalar product with identity elements ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product with identity elements ===");
     let domain = b"scalar_product_test";
     let log_n = 8;
 
@@ -412,7 +420,7 @@ fn test_soundness_scalar_product_identity_elements() {
 
     // Set E1 and E2 to identity elements
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Setting scalar product E1 and E2 to identity elements...");
+        tracing::debug!("Setting scalar product E1 and E2 to identity elements...");
         final_msg.e1 = G1Affine::identity();
         final_msg.e2 = G2AffineWrapper::identity();
 
@@ -428,14 +436,15 @@ fn test_soundness_scalar_product_identity_elements() {
             "Verification should fail with identity elements"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scalar_product_consistency_check() {
-    println!("=== Testing soundness: scalar product consistency with inner product state ===");
+    let _ = tracing_subscriber::fmt::try_init();
+    tracing::debug!("=== Testing soundness: scalar product consistency with inner product state ===");
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
@@ -458,7 +467,7 @@ fn test_soundness_scalar_product_consistency_check() {
 
     // Create a new scalar product message that's inconsistent with the folded state
     if let Some(final_msg) = &mut proof_builder.final_message {
-        println!("Creating inconsistent scalar product message...");
+        tracing::debug!("Creating inconsistent scalar product message...");
 
         // Generate completely new v1 and v2
         let new_v1 = G1Affine::rand(&mut rng);
@@ -484,7 +493,7 @@ fn test_soundness_scalar_product_consistency_check() {
             "Verification should fail with inconsistent scalar product message"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("✓ Verification correctly failed at round: {}", round);
         }
     }
 }
