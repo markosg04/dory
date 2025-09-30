@@ -444,7 +444,9 @@ fn test_soundness_scalar_product_identity_elements() {
 #[test]
 fn test_soundness_scalar_product_consistency_check() {
     let _ = tracing_subscriber::fmt::try_init();
-    tracing::debug!("=== Testing soundness: scalar product consistency with inner product state ===");
+    tracing::debug!(
+        "=== Testing soundness: scalar product consistency with inner product state ==="
+    );
     let mut rng = test_rng();
     let domain = b"scalar_product_test";
     let log_n = 8;
