@@ -1,15 +1,14 @@
 //! GT offloading abstraction for recursive JOLT
 use crate::arithmetic::{Group, Pairing};
+use crate::recursion_prelude::GTOffloadResult;
 
-#[cfg(feature = "recursion")]
-use jolt_optimizations::ExponentiationSteps;
 #[cfg(feature = "recursion")]
 use std::collections::VecDeque;
 
 /// Context for managing GT offloading operations in recursive SNARKs
 pub struct OffloadContext {
     #[cfg(feature = "recursion")]
-    queue: Option<VecDeque<ExponentiationSteps>>,
+    queue: Option<VecDeque<GTOffloadResult>>,
     #[cfg(not(feature = "recursion"))]
     _phantom: (),
 }
@@ -25,11 +24,11 @@ impl OffloadContext {
         }
     }
 
-    /// Create an OffloadContext with precomputed exponentiation steps for recursion
+    /// Create an OffloadContext with precomputed GT offload results for recursion
     #[cfg(feature = "recursion")]
-    pub fn with_steps(steps: Vec<ExponentiationSteps>) -> Self {
+    pub fn with_steps(results: Vec<GTOffloadResult>) -> Self {
         Self {
-            queue: Some(VecDeque::from(steps)),
+            queue: Some(VecDeque::from(results)),
         }
     }
 
@@ -45,7 +44,7 @@ impl OffloadContext {
         }
     }
     #[cfg(feature = "recursion")]
-    fn pop_result(&mut self) -> Option<ExponentiationSteps> {
+    fn pop_result(&mut self) -> Option<GTOffloadResult> {
         self.queue.as_mut().and_then(|q| q.pop_front())
     }
 }
@@ -71,16 +70,18 @@ where
     #[cfg(feature = "recursion")]
     {
         // Take a pre-computed value if available
-        if let Some(step) = ctx.pop_result() {
+        if let Some(offload_result) = ctx.pop_result() {
             debug_assert_eq!(
                 std::mem::size_of::<E::GT>(),
-                std::mem::size_of_val(&step.result),
-                "Size mismatch between GT type and precomputed result"
+                std::mem::size_of::<ark_bn254::Fq12>(),
+                "Size mismatch between GT type and Fq12"
             );
 
-            let precomputed_result: E::GT = unsafe { std::mem::transmute_copy(&step.result) };
+            // Direct extraction - no unsafe transmute needed since result is already Fq12
+            let precomputed_result: E::GT =
+                unsafe { std::mem::transmute_copy(&offload_result.result) };
 
-            //  tests correctness of the offloaded values
+            // Test correctness of the offloaded values
             #[cfg(debug_assertions)]
             {
                 let native_result = value.scale(scalar);

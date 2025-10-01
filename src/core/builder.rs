@@ -15,7 +15,7 @@ use crate::{
     toy_transcript::ToyTranscript,
 };
 
-use crate::recursion_prelude::ExponentiationSteps;
+use crate::recursion_prelude::{ExponentiationSteps, GTOffloadResult};
 
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
@@ -33,8 +33,8 @@ where
     pub final_message: Option<ScalarProductMessage<G1, G2>>,
     /// Vector-matrix-vector message (for PCS)
     pub vmv_message: Option<VMVMessage<G1, GT>>,
-    /// GT exponentiation steps for recursion
-    pub gt_exponentiation_steps: Option<Vec<ExponentiationSteps>>,
+    /// GT offload results for recursion (lightweight, only contains Fq12 results)
+    pub gt_offload_results: Option<Vec<GTOffloadResult>>,
 }
 
 impl<G1, G2, GT> DoryProof<G1, G2, GT>
@@ -43,20 +43,7 @@ where
     G2: Group,
     GT: Group,
 {
-    /// This is a bit of a hack for now to test proof size
-    /// TODO(markosg04) remove this
-    #[cfg(feature = "recursion")]
-    pub fn minimize_exponentiation_steps(&mut self) {
-        if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-            for steps in gt_steps {
-                steps.base = Default::default();
-                steps.exponent = Default::default();
-                steps.rho_mles.clear();
-                steps.quotient_mles.clear();
-                steps.bits.clear();
-            }
-        }
-    }
+    // minimize_exponentiation_steps removed - no longer needed with GTOffloadResult
 }
 
 /// Trait that defines the structure of the Dory proof.
@@ -156,8 +143,10 @@ where
 
     /// vector-matrix-vector message, used to transform general dory into PCS
     pub vmv_message: Option<VMVMessage<G1, GT>>,
-    /// GT exponentiation steps for recursion
+    /// GT exponentiation steps for recursion (full witness data)
     pub gt_exponentiation_steps: Option<Vec<ExponentiationSteps>>,
+    /// GT offload results for recursion (lightweight proof data)
+    pub gt_offload_results: Option<Vec<GTOffloadResult>>,
     /// Delta values from setup for round 1 left (recursion feature)
     pub setup_delta_1l: Option<Vec<GT>>,
     /// Delta values from setup for round 1 right (recursion feature)
@@ -215,6 +204,7 @@ where
             final_message: None,
             vmv_message: None,
             gt_exponentiation_steps: Some(Vec::new()),
+            gt_offload_results: Some(Vec::new()),
             setup_delta_1l: setup.delta_1l.clone(),
             setup_delta_1r: setup.delta_1r.clone(),
             setup_delta_2l: setup.delta_2l.clone(),
@@ -242,6 +232,7 @@ where
             final_message: None,
             vmv_message: None,
             gt_exponentiation_steps: None,
+            gt_offload_results: None,
             setup_delta_1l: None,
             setup_delta_1r: None,
             setup_delta_2l: None,
@@ -282,6 +273,7 @@ where
             final_message: None,
             vmv_message: None,
             gt_exponentiation_steps: Some(Vec::new()),
+            gt_offload_results: Some(Vec::new()),
             setup_delta_1l: setup.delta_1l.clone(),
             setup_delta_1r: setup.delta_1r.clone(),
             setup_delta_2l: setup.delta_2l.clone(),
@@ -315,6 +307,7 @@ where
             final_message: None,
             vmv_message: None,
             gt_exponentiation_steps: None,
+            gt_offload_results: None,
             setup_delta_1l: None,
             setup_delta_1r: None,
             setup_delta_2l: None,
@@ -340,26 +333,23 @@ where
             second_messages: self.second_messages.clone(),
             final_message: self.final_message.clone(),
             vmv_message: self.vmv_message.clone(),
-            gt_exponentiation_steps: self.gt_exponentiation_steps.clone(),
+            gt_offload_results: self.gt_offload_results.clone(),
         }
     }
 
-    /// Build a Dory proof and optionally return full exponentiation steps before minimization
-    /// This is used when recursion feature is enabled to preserve the full steps for sz_check
+    /// Build a Dory proof and return full exponentiation steps separately
+    /// This is used when recursion feature is enabled to preserve the full witness data.
+    /// The proof contains only lightweight GTOffloadResult, while full ExponentiationSteps
+    /// are returned separately for witness generation in recursive SNARKs.
     #[cfg(feature = "recursion")]
     pub fn build_with_full_steps(
         self,
     ) -> (DoryProof<G1, G2, GT>, Option<Vec<ExponentiationSteps>>) {
-        // Clone the full exponentiation steps before minimization
-        let full_steps = self.gt_exponentiation_steps.clone();
+        // Build the proof with lightweight results
+        let proof = self.build();
 
-        // Build the proof with full steps
-        let mut proof = self.build();
-
-        // Minimize the steps in the proof
-        proof.minimize_exponentiation_steps();
-
-        (proof, full_steps)
+        // Return full exponentiation steps separately for witness generation
+        (proof, self.gt_exponentiation_steps)
     }
 
     /// Create a DoryProofBuilder from a DoryProof and a fresh transcript
@@ -373,7 +363,8 @@ where
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
-            gt_exponentiation_steps: proof.gt_exponentiation_steps,
+            gt_exponentiation_steps: None, // Full steps not in proof
+            gt_offload_results: proof.gt_offload_results,
             setup_delta_1l: Some(Vec::new()),
             setup_delta_1r: Some(Vec::new()),
             setup_delta_2l: Some(Vec::new()),
@@ -406,7 +397,8 @@ where
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
-            gt_exponentiation_steps: proof.gt_exponentiation_steps,
+            gt_exponentiation_steps: None, // Full steps not in proof
+            gt_offload_results: proof.gt_offload_results,
             setup_delta_1l: Some(Vec::new()),
             setup_delta_1r: Some(Vec::new()),
             setup_delta_2l: Some(Vec::new()),
@@ -821,6 +813,9 @@ where
         if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
             gt_steps.clear();
         }
+        if let Some(ref mut gt_results) = self.gt_offload_results {
+            gt_results.clear();
+        }
 
         if self.setup_delta_1l.as_ref().map_or(true, |v| v.is_empty()) {
             tracing::warn!("No setup delta values available for recursion");
@@ -865,24 +860,44 @@ where
             if let (Some(d1_val), Some(d2_val)) = (&d_1, &d_2) {
                 let (_, steps_d2) = d2_val.scale_with_steps(&beta);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps_d2);
+                    gt_steps.push(steps_d2.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps_d2.result,
+                    });
                 }
 
                 let (_, steps_d1) = d1_val.scale_with_steps(&beta_inv);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps_d1);
+                    gt_steps.push(steps_d1.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps_d1.result,
+                    });
                 }
             }
 
             // 2: c_plus.scale(&alpha) and c_minus.scale(&alpha_inv)
             let (_, steps_c_plus) = second_msg.c_plus.scale_with_steps(&alpha);
             if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                gt_steps.push(steps_c_plus);
+                gt_steps.push(steps_c_plus.clone());
+            }
+            if let Some(ref mut gt_results) = self.gt_offload_results {
+                gt_results.push(GTOffloadResult {
+                    result: steps_c_plus.result,
+                });
             }
 
             let (_, steps_c_minus) = second_msg.c_minus.scale_with_steps(&alpha_inv);
             if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                gt_steps.push(steps_c_minus);
+                gt_steps.push(steps_c_minus.clone());
+            }
+            if let Some(ref mut gt_results) = self.gt_offload_results {
+                gt_results.push(GTOffloadResult {
+                    result: steps_c_minus.result,
+                });
             }
 
             // 3. Operations from dory_reduce_verify_update_ds
@@ -892,7 +907,12 @@ where
             // d1_left.scale(&alpha)
             let (_, steps_d1l) = first_msg.d1_left.scale_with_steps(&alpha);
             if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                gt_steps.push(steps_d1l);
+                gt_steps.push(steps_d1l.clone());
+            }
+            if let Some(ref mut gt_results) = self.gt_offload_results {
+                gt_results.push(GTOffloadResult {
+                    result: steps_d1l.result,
+                });
             }
 
             // Then the delta operations for D1 using the current nu value
@@ -902,13 +922,23 @@ where
                 let (_, steps) =
                     self.setup_delta_1l.as_ref().unwrap()[nu].scale_with_steps(&alpha_beta);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
 
                 // delta_1r.scale(&beta)
                 let (_, steps) = self.setup_delta_1r.as_ref().unwrap()[nu].scale_with_steps(&beta);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
             }
 
@@ -916,7 +946,12 @@ where
             // d2_left.scale(&alpha_inv)
             let (_, steps_d2l) = first_msg.d2_left.scale_with_steps(&alpha_inv);
             if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                gt_steps.push(steps_d2l);
+                gt_steps.push(steps_d2l.clone());
+            }
+            if let Some(ref mut gt_results) = self.gt_offload_results {
+                gt_results.push(GTOffloadResult {
+                    result: steps_d2l.result,
+                });
             }
 
             // Then the delta operations for D2
@@ -926,14 +961,24 @@ where
                 let (_, steps) =
                     self.setup_delta_2l.as_ref().unwrap()[nu].scale_with_steps(&alpha_inv_beta_inv);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
 
                 // delta_2r.scale(&beta_inv)
                 let (_, steps) =
                     self.setup_delta_2r.as_ref().unwrap()[nu].scale_with_steps(&beta_inv);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
             } else if self
                 .setup_delta_1l
@@ -1024,7 +1069,12 @@ where
             let s_product = s1_final.mul(&s2_final);
             let (_, steps) = ht.scale_with_steps(&s_product);
             if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                gt_steps.push(steps);
+                gt_steps.push(steps.clone());
+            }
+            if let Some(ref mut gt_results) = self.gt_offload_results {
+                gt_results.push(GTOffloadResult {
+                    result: steps.result,
+                });
             }
 
             // 2. pairing(h1, e2).scale(&gamma) - use tracked e_2
@@ -1034,14 +1084,24 @@ where
                 let pairing_h1_e2 = E::pair(h1, e2_val);
                 let (_, steps) = pairing_h1_e2.scale_with_steps(&gamma);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
 
                 // 3. pairing(e1, h2).scale(&gamma_inv) - use tracked e_1
                 let pairing_e1_h2 = E::pair(e1_val, h2);
                 let (_, steps) = pairing_e1_h2.scale_with_steps(&gamma_inv);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
             }
 
@@ -1077,12 +1137,22 @@ where
                 // 5. d_1.scale(&d_inv)
                 let (_, steps) = final_d2.scale_with_steps(&d);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
 
                 let (_, steps) = final_d1.scale_with_steps(&d_inv);
                 if let Some(ref mut gt_steps) = self.gt_exponentiation_steps {
-                    gt_steps.push(steps);
+                    gt_steps.push(steps.clone());
+                }
+                if let Some(ref mut gt_results) = self.gt_offload_results {
+                    gt_results.push(GTOffloadResult {
+                        result: steps.result,
+                    });
                 }
             }
         }

@@ -15,7 +15,7 @@ use crate::transcript::Transcript;
 use ark_std::rand::RngCore;
 
 #[cfg(feature = "recursion")]
-use crate::recursion_prelude::ExponentiationSteps;
+use crate::recursion_prelude::GTOffloadResult;
 
 mod core;
 mod error;
@@ -268,11 +268,11 @@ where
     // When recursion feature is enabled, use recursion-aware verification
     #[cfg(feature = "recursion")]
     {
-        // Extract the GT exponentiation steps from the proof if available
+        // Extract the GT offload results from the proof if available
         let recursion_ops = proof
-            .gt_exponentiation_steps
+            .gt_offload_results
             .as_ref()
-            .filter(|steps| !steps.is_empty())
+            .filter(|results| !results.is_empty())
             .cloned();
 
         // Use the recursion-aware verification
@@ -307,9 +307,9 @@ where
 
 /// Verify a Dory evaluation proof with explicit recursion support
 ///
-/// This is a low-level function that allows explicitly providing GT exponentiation steps.
+/// This is a low-level function that allows explicitly providing GT offload results.
 /// In most cases, you should use the main `verify()` function which automatically
-/// extracts and uses GT steps when the recursion feature is enabled.
+/// extracts and uses GT results when the recursion feature is enabled.
 ///
 /// # Parameters
 /// - `commitment`: The polynomial commitment in GT
@@ -319,7 +319,7 @@ where
 /// - `sigma`: matrix to commit is of size 2^sigma
 /// - `verifier_setup`: The verifier setup containing verification elements
 /// - `transcript`: Fresh transcript for verification
-/// - `recursion_ops`: Optional precomputed GT exponentiation steps for recursion mode
+/// - `recursion_ops`: Optional precomputed GT offload results for recursion mode
 ///
 /// # Returns
 /// `Ok(())` if verification succeeds, `Err(DoryError)` if it fails
@@ -338,7 +338,7 @@ pub fn verify_with_explicit_recursion_ops<
     sigma: usize,
     verifier_setup: &VerifierSetup<E>,
     transcript: T,
-    recursion_ops: Option<Vec<ExponentiationSteps>>,
+    recursion_ops: Option<Vec<GTOffloadResult>>,
 ) -> Result<(), DoryError>
 where
     E::G1: Group,

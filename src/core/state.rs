@@ -1,6 +1,6 @@
 //! Defines the structures which manage state during interactive execution of the prover and verifier
 #[cfg(feature = "recursion")]
-use crate::recursion_prelude::ExponentiationSteps;
+use crate::recursion_prelude::GTOffloadResult;
 use crate::{
     arithmetic::{Field, Group, MultiScalarMul, Pairing},
     messages::{
@@ -337,7 +337,7 @@ where
         s1: Option<Vec<<E::G1 as Group>::Scalar>>,
         s2: Option<Vec<<E::G1 as Group>::Scalar>>,
         nu: usize,
-        recursion_ops: Option<Vec<ExponentiationSteps>>,
+        recursion_ops: Option<Vec<GTOffloadResult>>,
     ) -> Self {
         Self {
             c,

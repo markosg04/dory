@@ -64,20 +64,20 @@ fn test_recursion_offload_with_valid_steps() {
         &prover_setup,
     );
 
-    // Extract GT exponentiation steps from the proof
-    let recursion_ops = proof.gt_exponentiation_steps.clone();
+    // Extract GT offload results from the proof
+    let recursion_ops = proof.gt_offload_results.clone();
 
-    // Verify that steps were actually generated
+    // Verify that results were actually generated
     assert!(
         recursion_ops.is_some(),
-        "GT exponentiation steps should be present when recursion feature is enabled"
+        "GT offload results should be present when recursion feature is enabled"
     );
 
-    let step_count = recursion_ops.as_ref().unwrap().len();
-    tracing::debug!("Generated {} GT exponentiation steps", step_count);
+    let result_count = recursion_ops.as_ref().unwrap().len();
+    tracing::debug!("Generated {} GT offload results", result_count);
     assert!(
-        step_count > 0,
-        "Should have generated at least one GT exponentiation step"
+        result_count > 0,
+        "Should have generated at least one GT offload result"
     );
 
     // Compute verification data
@@ -171,15 +171,15 @@ fn test_recursion_offload_with_tampered_steps_should_fail() {
         &prover_setup,
     );
 
-    // Extract and tamper with GT exponentiation steps
-    let mut recursion_ops = proof.gt_exponentiation_steps.clone().unwrap();
+    // Extract and tamper with GT offload results
+    let mut recursion_ops = proof.gt_offload_results.clone().unwrap();
     assert!(
         !recursion_ops.is_empty(),
-        "Should have GT steps to tamper with"
+        "Should have GT offload results to tamper with"
     );
 
-    // Tamper with the first step's result
-    tracing::debug!("Tampering with first GT exponentiation step...");
+    // Tamper with the first result
+    tracing::debug!("Tampering with first GT offload result...");
     // Replace the result with a random Fq12 value
     recursion_ops[0].result = Fq12::rand(&mut rng);
 

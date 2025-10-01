@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[cfg(feature = "recursion")]
-use crate::recursion_prelude::ExponentiationSteps;
+use crate::recursion_prelude::GTOffloadResult;
 
 /// Implements the Eval-VMV-RE protocol from Dory Section 5
 /// Proves the VMV relation: polynomial(point) = L^T × M × R
@@ -370,7 +370,7 @@ pub fn verify_evaluation_proof_with_recursion<
     sigma: usize,
     verifier_setup: &VerifierSetup<E>,
     transcript: T,
-    recursion_ops: Option<Vec<ExponentiationSteps>>,
+    recursion_ops: Option<Vec<GTOffloadResult>>,
 ) -> Result<(), DoryError>
 where
     E::G1: Group,

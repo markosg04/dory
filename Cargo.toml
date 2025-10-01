@@ -14,10 +14,10 @@ exclude = [".github", "README.md"]
 [dependencies]
 ark-bn254 = "0.5.0"
 ark-ec = { version = "0.5.0", default-features = false, features = [
-    "parallel",
+    # "parallel",
 ] }
 ark-ff = { version = "0.5.0", default-features = false, features = [
-    "parallel",
+    # "parallel",
 ] }
 
 ark-serialize = { path = "/Users/mgeorghiades/a16z/arkworks-algebra/serialize" }
@@ -47,6 +47,7 @@ ark-bn254 = { path = "/Users/mgeorghiades/a16z/arkworks-algebra/curves/bn254" }
 [features]
 # default = ["recursion"]
 recursion = []
+parallel = ["ark-ec/parallel", "ark-ff/parallel"]
 
 
 [package.metadata.docs.rs]
