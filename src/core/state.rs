@@ -1,10 +1,13 @@
 //! Defines the structures which manage state during interactive execution of the prover and verifier
+#[cfg(feature = "recursion")]
+use crate::recursion_prelude::GTOffloadResult;
 use crate::{
     arithmetic::{Field, Group, MultiScalarMul, Pairing},
     messages::{
         FirstReduceChallenge, FirstReduceMessage, FoldScalarsChallenge, ScalarProductMessage,
         SecondReduceChallenge, SecondReduceMessage,
     },
+    offload::OffloadContext,
 };
 
 use super::ScalarProductChallenge;
@@ -119,7 +122,11 @@ pub trait ProverState {
         self,
         setup: &Self::Setup,
         fold_scalars_challenge: FoldScalarsChallenge<Self::Scalar>,
-    ) -> ScalarProductMessage<Self::G1, Self::G2>
+    ) -> (
+        ScalarProductMessage<Self::G1, Self::G2>,
+        Self::Scalar,
+        Self::Scalar,
+    )
     where
         Self::G1: Group,
         Self::G2: Group,
@@ -200,7 +207,7 @@ pub trait VerifierState {
     /// Final verification step for Extended Dory-Reduce
     /// Verifies: e(E₁, H₂) * e(H₁, E₂) = C * e(H₁, H₂)^γ
     fn verify_final_pairing(
-        &self,
+        &mut self,
         setup: &Self::Setup,
         message: &ScalarProductMessage<Self::G1, Self::G2>,
         d_pair: ScalarProductChallenge<Self::Scalar>,
@@ -271,6 +278,9 @@ where
 
     /// Current round number. Length of v1 and v2 should be 2^nu.
     pub nu: usize,
+
+    /// Context for managing offloaded GT operations
+    pub offload_ctx: OffloadContext,
 }
 impl<E: Pairing> DoryVerifierState<E>
 where
@@ -288,6 +298,7 @@ where
             s1_tensor: None, // not used in non-pcs context
             s2_tensor: None, // not used in non-pcs context
             nu,
+            offload_ctx: OffloadContext::new(),
         }
     }
 
@@ -311,6 +322,35 @@ where
             s1_tensor: Some(s1),
             s2_tensor: Some(s2),
             nu,
+            offload_ctx: OffloadContext::new(),
+        }
+    }
+
+    /// Constructor with recursion support
+    #[cfg(feature = "recursion")]
+    pub fn new_with_recursion(
+        c: E::GT,
+        d_1: E::GT,
+        d_2: E::GT,
+        e_1: E::G1,
+        e_2: E::G2,
+        s1: Option<Vec<<E::G1 as Group>::Scalar>>,
+        s2: Option<Vec<<E::G1 as Group>::Scalar>>,
+        nu: usize,
+        recursion_ops: Option<Vec<GTOffloadResult>>,
+    ) -> Self {
+        Self {
+            c,
+            d_1,
+            d_2,
+            e_1,
+            e_2,
+            s1_tensor: s1,
+            s2_tensor: s2,
+            nu,
+            offload_ctx: recursion_ops
+                .map(|ops| OffloadContext::with_steps(ops))
+                .unwrap_or_default(),
         }
     }
 }

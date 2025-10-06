@@ -19,6 +19,9 @@ use crate::{
     ProofBuilder,
 };
 
+#[cfg(feature = "recursion")]
+use crate::recursion_prelude::GTOffloadResult;
+
 /// Implements the Eval-VMV-RE protocol from Dory Section 5
 /// Proves the VMV relation: polynomial(point) = L^T × M × R
 ///
@@ -37,6 +40,7 @@ fn eval_vmv_re_prove<
 ) -> (
     DoryProofBuilder<E::G1, E::G2, E::GT, <E::G1 as Group>::Scalar, T>,
     DoryProverState<E>,
+    Option<E::GT>, // Return d1 for use in finalize_for_recursion (only when recursion enabled)
 )
 where
     E::G1: Group,
@@ -46,10 +50,10 @@ where
 {
     // Validate inputs
     if prover_state.v1.is_empty() || prover_state.s1.is_empty() {
-        println!("v1 or s1 is empty in eval_vmv_re_prove");
+        tracing::warn!("v1 or s1 is empty in eval_vmv_re_prove");
     }
     if prover_state.nu > 0 && prover_setup.g1_vec().len() < (1 << prover_state.nu) {
-        println!("prover_setup.g1_vec doesn't have enough elements for nu");
+        tracing::warn!("prover_setup.g1_vec doesn't have enough elements for nu");
     }
 
     // --- Protocol computations (Dory Section 5) ---
@@ -74,10 +78,21 @@ where
     };
     let d2 = E::pair(&gamma1_v_inner_product, prover_setup.g_fin());
 
+    // D₁ = e(⟨T_vec_prime, Γ₂[nu]⟩)
+    // This is what the verifier will have as initial d_1
+    // Only compute when recursion is enabled since it's only used for finalize_for_recursion
+    #[cfg(feature = "recursion")]
+    let d1 = Some(E::multi_pair(
+        &prover_state.v1, // T_vec_prime
+        &prover_setup.g2_vec()[..1 << prover_state.nu],
+    ));
+    #[cfg(not(feature = "recursion"))]
+    let d1 = None;
+
     // E₁ = ⟨T~₀, ~L⟩
     // Protocol: E₁ = ⟨~L, C₀⟩ + rE₁·H₁ (randomness omitted)
     if prover_state.s2.is_empty() && !prover_state.v1.is_empty() {
-        println!("s2 is empty but v1 is not in E₁ calculation");
+        tracing::warn!("s2 is empty but v1 is not in E₁ calculation");
     }
     let e1 = M1::msm(&prover_state.v1, &prover_state.s2);
 
@@ -101,7 +116,7 @@ where
 
     prover_state.v2 = updated_v2;
 
-    (proof_builder, prover_state)
+    (proof_builder, prover_state, d1)
 }
 
 /// Create a new Dory evaluation proof
@@ -114,6 +129,7 @@ pub fn create_evaluation_proof<
 >(
     initial_transcript: T, // DoryProofBuilder takes ownership of the transcript
     polynomial: &P,
+    row_commitments: Option<Vec<E::G1>>,
     point: &[<E::G1 as Group>::Scalar],
     sigma: usize,
     prover_setup: &ProverSetup<E>,
@@ -126,10 +142,11 @@ where
 {
     // 1. Compute parameters
     let nu = compute_nu(point.len(), sigma);
-    // println!("nu length: {:?}", nu); -> useful for debug
+    tracing::debug!("nu length: {:?}", nu);
 
     // 2. Compute row commits (T` in the paper?)
-    let t_vec_prime = commit_to_rows::<E, M1, P>(polynomial, sigma, nu, prover_setup);
+    let t_vec_prime = row_commitments
+        .unwrap_or_else(|| commit_to_rows::<E, M1, P>(polynomial, sigma, nu, prover_setup));
 
     // 3. Build VMV prover state
     let vmv_state = build_vmv_prover_state::<E, P>(polynomial, point, t_vec_prime, sigma, nu);
@@ -138,19 +155,53 @@ where
     let (v_vec, prover_state) = vmv_state_to_dory_prover_state(vmv_state, prover_setup);
 
     // 5. Initialize the DoryProofBuilder
+    #[cfg(feature = "recursion")]
+    let proof_builder = DoryProofBuilder::new(initial_transcript, prover_setup);
+    #[cfg(not(feature = "recursion"))]
     let proof_builder = DoryProofBuilder::new(initial_transcript);
 
     // 6. Initial commitments
-    let (final_proof_builder, proof_state) =
-        eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec, prover_setup);
+    let (final_proof_builder, proof_state, _initial_d1) =
+        eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec.clone(), prover_setup);
+
+    // Prepare values for recursion before they're moved
+    #[cfg(feature = "recursion")]
+    let (initial_e1, initial_e2) = {
+        // Get initial e1 from the VMV message (already in builder)
+        let initial_e1 = final_proof_builder.vmv_message.as_ref().unwrap().e1.clone();
+
+        // Compute y = <v_vec, r_vec> which is the polynomial evaluation
+        // This is what the verifier has as vmv_state.y
+        // Note: s1 = r_vec, s2 = l_vec (see vmv_state_to_dory_prover_state)
+        let y = v_vec
+            .iter()
+            .zip(proof_state.s1.iter()) // s1 contains r_vec after conversion
+            .fold(<E::G1 as Group>::Scalar::zero(), |acc, (v, r)| {
+                acc.add(&v.mul(r))
+            });
+
+        // Initial e2 = g_fin.scale(&y) (computed on verifier side)
+        let initial_e2 = prover_setup.g_fin().scale(&y);
+
+        (initial_e1, initial_e2)
+    };
 
     // prove!
-    inner_product_prove::<_, _, _, _, _, _, _, M1, M2>(
+    let builder = inner_product_prove::<_, _, _, _, _, _, _, M1, M2>(
         final_proof_builder,
         proof_state,
         prover_setup,
         nu,
-    )
+    );
+
+    // Finalize for recursion if feature is enabled
+    #[cfg(feature = "recursion")]
+    let builder =
+        builder.finalize_for_recursion(prover_setup, nu, _initial_d1, initial_e1, initial_e2);
+    #[cfg(not(feature = "recursion"))]
+    let builder = builder;
+
+    builder
 }
 
 // VERIFIER ANALOGUE:
@@ -296,6 +347,66 @@ where
     // 6. Eval VMV re verifier side
     let (verify_builder, verifier_state) =
         eval_vmv_re_verify::<E, T, M1>(verify_builder, vmv_state, verifier_setup);
+
+    // 7. Dory inner product verify
+    inner_product_verify(verify_builder, verifier_state, verifier_setup, nu)
+        .map_err(|_| DoryError::InvalidProof)
+}
+
+/// Verify a dory evaluation proof with recursion support
+#[cfg(feature = "recursion")]
+pub fn verify_evaluation_proof_with_recursion<
+    E: Pairing,
+    T: Transcript<Scalar = <E::G1 as Group>::Scalar>,
+    M1: MultiScalarMul<E::G1>,
+    M2: MultiScalarMul<E::G2>,
+    MGT: MultiScalarMul<E::GT>,
+>(
+    proof: DoryProofBuilder<E::G1, E::G2, E::GT, <E::G1 as Group>::Scalar, T>,
+    commitment_batch: &[E::GT],
+    batching_factors: &[<E::G1 as Group>::Scalar],
+    evaluations: &[<E::G1 as Group>::Scalar],
+    b_points: &[<E::G1 as Group>::Scalar],
+    sigma: usize,
+    verifier_setup: &VerifierSetup<E>,
+    transcript: T,
+    recursion_ops: Option<Vec<GTOffloadResult>>,
+) -> Result<(), DoryError>
+where
+    E::G1: Group,
+    E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
+    E::GT: Group<Scalar = <E::G1 as Group>::Scalar>,
+    <E::G1 as Group>::Scalar: Field,
+{
+    // 1. Compute the MSM of commits and the factors
+    let a_commit = MGT::msm(commitment_batch, batching_factors);
+
+    // 2. Compute the product of evaluations and batching factors (batching factors should be 1)
+    let product: <E::G1 as Group>::Scalar = evaluations
+        .iter()
+        .zip(batching_factors)
+        .fold(<E::G1 as Group>::Scalar::zero(), |acc, (&e, &f)| {
+            acc.add(&e.mul(&f))
+        });
+
+    // 3. Compute nu
+    let nu = compute_nu(b_points.len(), sigma);
+
+    // 4. Build VMV verifier state
+    let vmv_state = build_vmv_verifier_state::<E>(product, b_points, a_commit, sigma, nu);
+
+    // 5. Create verifier builder from proof
+    let verify_builder = DoryVerifyBuilder::new_from_proof(proof, transcript);
+
+    // 6. Eval VMV re verifier side and add recursion ops
+    let (verify_builder, mut verifier_state) =
+        eval_vmv_re_verify::<E, T, M1>(verify_builder, vmv_state, verifier_setup);
+
+    // 7. Add recursion ops to the verifier state
+    #[cfg(feature = "recursion")]
+    if let Some(ops) = recursion_ops {
+        verifier_state.offload_ctx = crate::offload::OffloadContext::with_steps(ops);
+    }
 
     // 7. Dory inner product verify
     inner_product_verify(verify_builder, verifier_state, verifier_setup, nu)

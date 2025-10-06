@@ -9,11 +9,14 @@ pub mod builder;
 pub mod inner_product;
 pub mod interactive_protocol;
 pub mod messages;
+pub mod offload;
+pub mod recursion_prelude;
 pub mod setup;
 pub mod state;
 
 pub use builder::*;
 pub use inner_product::*;
 pub use messages::*;
+pub use offload::*;
 pub use setup::*;
 pub use state::*;

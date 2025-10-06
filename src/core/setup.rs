@@ -1,4 +1,4 @@
-//! Data structures and generation of the transparent setup for both prover and verifier
+//! Data structures and generation of the universal reference string (URS) for both prover and verifier
 use crate::arithmetic::*;
 use crate::curve::{G1Cache, G2Cache};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, SerializationError};
@@ -34,6 +34,16 @@ pub struct ProverSetup<E: Pairing> {
     pub g1_cache: Option<G1Cache>,
     /// Optional cache for G2 generators (not serialized, can be regenerated)
     pub g2_cache: Option<G2Cache>,
+    /// Δ₁L[k] = e(Γ₁[..2^(k-1)], Γ₂[..2^(k-1)]) for recursion
+    pub delta_1l: Option<Vec<E::GT>>,
+    /// Δ₁R[k] = e(Γ₁[2^(k-1)..2^k], Γ₂[..2^(k-1)]) for recursion
+    pub delta_1r: Option<Vec<E::GT>>,
+    /// Δ₂L[k] = same as Δ₁L[k] for recursion
+    pub delta_2l: Option<Vec<E::GT>>,
+    /// Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k)] for recursion
+    pub delta_2r: Option<Vec<E::GT>>,
+    /// χ[k] = e(Γ₁[..2^k], Γ₂[..2^k]) for recursion
+    pub chi: Option<Vec<E::GT>>,
 }
 
 // Implement CanonicalSerialize and CanonicalDeserialize for ProverSetup by delegating to core
@@ -57,11 +67,25 @@ impl<E: Pairing> CanonicalDeserialize for ProverSetup<E> {
         validate: ark_serialize::Validate,
     ) -> Result<Self, SerializationError> {
         let core = ProverSetupCore::deserialize_with_mode(reader, compress, validate)?;
-        Ok(Self {
+        #[allow(unused_mut)]
+        let mut setup = Self {
             core,
             g1_cache: None,
             g2_cache: None,
-        })
+            delta_1l: None,
+            delta_1r: None,
+            delta_2l: None,
+            delta_2r: None,
+            chi: None,
+        };
+
+        // Initialize delta and chi values for recursion
+        #[cfg(feature = "recursion")]
+        {
+            setup.init_delta_chi_values();
+        }
+
+        Ok(setup)
     }
 }
 
@@ -140,7 +164,8 @@ impl<E: Pairing> ProverSetup<E> {
         let h2 = E::G2::random(&mut rng);
         let ht = E::pair(&h1, &h2);
 
-        Self {
+        #[allow(unused_mut)]
+        let mut setup = Self {
             core: ProverSetupCore {
                 g1_vec,
                 g2_vec,
@@ -151,7 +176,20 @@ impl<E: Pairing> ProverSetup<E> {
             },
             g1_cache: None,
             g2_cache: None,
+            delta_1l: None,
+            delta_1r: None,
+            delta_2l: None,
+            delta_2r: None,
+            chi: None,
+        };
+
+        // Initialize delta and chi values for recursion
+        #[cfg(feature = "recursion")]
+        {
+            setup.init_delta_chi_values();
         }
+
+        setup
     }
 
     /// Convert to verifier side
@@ -167,16 +205,16 @@ impl<E: Pairing> ProverSetup<E> {
         E::G1: Into<ark_bn254::G1Affine> + Copy,
         E::G2: Into<ark_bn254::G2Affine> + Copy,
     {
-        println!(
-            "Initializing G1 cache from {} generators...",
+        tracing::info!(
+            "Initializing G1 cache from {} generators",
             self.core.g1_vec.len()
         );
         let g1_elements: Vec<ark_bn254::G1Affine> =
             self.core.g1_vec.iter().map(|&g| g.into()).collect();
         self.g1_cache = Some(G1Cache::new(&g1_elements));
 
-        println!(
-            "Initializing G2 cache from {} generators...",
+        tracing::info!(
+            "Initializing G2 cache from {} generators",
             self.core.g2_vec.len()
         );
         let g2_elements: Vec<ark_bn254::G2Affine> =
@@ -184,7 +222,7 @@ impl<E: Pairing> ProverSetup<E> {
         let g_fin_element: ark_bn254::G2Affine = self.core.g_fin.into();
         self.g2_cache = Some(G2Cache::new(&g2_elements, Some(&g_fin_element)));
 
-        println!("Cache initialization complete.");
+        tracing::info!("Cache initialization complete");
     }
 
     /// Save caches to separate files
@@ -195,11 +233,11 @@ impl<E: Pairing> ProverSetup<E> {
     ) -> Result<(), SerializationError> {
         if let Some(ref g1_cache) = self.g1_cache {
             g1_cache.save_to_file(g1_cache_path)?;
-            println!("Saved G1 cache to {}", g1_cache_path);
+            tracing::info!("Saved G1 cache to {}", g1_cache_path);
         }
         if let Some(ref g2_cache) = self.g2_cache {
             g2_cache.save_to_file(g2_cache_path)?;
-            println!("Saved G2 cache to {}", g2_cache_path);
+            tracing::info!("Saved G2 cache to {}", g2_cache_path);
         }
         Ok(())
     }
@@ -212,22 +250,22 @@ impl<E: Pairing> ProverSetup<E> {
     ) -> Result<(), SerializationError> {
         match G1Cache::load_from_file(g1_cache_path) {
             Ok(cache) => {
-                println!("Loaded G1 cache from {}", g1_cache_path);
+                tracing::info!("Loaded G1 cache from {}", g1_cache_path);
                 self.g1_cache = Some(cache);
             }
             Err(e) => {
-                println!("Failed to load G1 cache from {}: {:?}", g1_cache_path, e);
+                tracing::error!("Failed to load G1 cache from {}: {:?}", g1_cache_path, e);
                 return Err(e);
             }
         }
 
         match G2Cache::load_from_file(g2_cache_path) {
             Ok(cache) => {
-                println!("Loaded G2 cache from {}", g2_cache_path);
+                tracing::info!("Loaded G2 cache from {}", g2_cache_path);
                 self.g2_cache = Some(cache);
             }
             Err(e) => {
-                println!("Failed to load G2 cache from {}: {:?}", g2_cache_path, e);
+                tracing::error!("Failed to load G2 cache from {}: {:?}", g2_cache_path, e);
                 return Err(e);
             }
         }
@@ -238,6 +276,60 @@ impl<E: Pairing> ProverSetup<E> {
     /// Check if caches are initialized
     pub fn has_cache(&self) -> bool {
         self.g1_cache.is_some() && self.g2_cache.is_some()
+    }
+
+    /// Initialize delta and chi values for recursion needs, mirrors the verifier
+    pub fn init_delta_chi_values(&mut self) {
+        #[cfg(feature = "recursion")]
+        {
+            let max_log_n = self.core.g1_vec.len().trailing_zeros() as usize;
+
+            let mut delta_1l = Vec::with_capacity(max_log_n + 1);
+            let mut delta_1r = Vec::with_capacity(max_log_n + 1);
+            let mut delta_2l = Vec::with_capacity(max_log_n + 1);
+            let mut delta_2r = Vec::with_capacity(max_log_n + 1);
+            let mut chi = Vec::with_capacity(max_log_n + 1);
+
+            for k in 0..=max_log_n {
+                if k == 0 {
+                    delta_1l.push(E::GT::identity());
+                    delta_1r.push(E::GT::identity());
+                    delta_2l.push(E::GT::identity());
+                    delta_2r.push(E::GT::identity());
+                    chi.push(E::pair(&self.core.g1_vec[0], &self.core.g2_vec[0]));
+                } else {
+                    let half_len = 1 << (k - 1);
+                    let full_len = 1 << k;
+
+                    let g1_first_half = &self.core.g1_vec[..half_len];
+                    let g1_second_half = &self.core.g1_vec[half_len..full_len];
+                    let g2_first_half = &self.core.g2_vec[..half_len];
+                    let g2_second_half = &self.core.g2_vec[half_len..full_len];
+
+                    // Δ₁L[k] = Δ₂L[k] = e(Γ₁[..2^(k-1)], Γ₂[..2^(k-1)])
+                    delta_1l.push(chi[k - 1].clone());
+                    delta_2l.push(chi[k - 1].clone());
+
+                    // Δ₁R[k] = e(Γ₁[2^(k-1)..2^k], Γ₂[..2^(k-1)])
+                    delta_1r.push(E::multi_pair(g1_second_half, g2_first_half));
+
+                    // Δ₂R[k] = e(Γ₁[..2^(k-1)], Γ₂[2^(k-1)..2^k)]
+                    delta_2r.push(E::multi_pair(g1_first_half, g2_second_half));
+
+                    // χ[k] = e(Γ₁[..2^k], Γ₂[..2^k])
+                    chi.push(E::multi_pair(
+                        &self.core.g1_vec[..full_len],
+                        &self.core.g2_vec[..full_len],
+                    ));
+                }
+            }
+
+            self.delta_1l = Some(delta_1l);
+            self.delta_1r = Some(delta_1r);
+            self.delta_2l = Some(delta_2l);
+            self.delta_2r = Some(delta_2r);
+            self.chi = Some(chi);
+        }
     }
 
     /// Get windowed G1 data if cache is available
@@ -291,7 +383,7 @@ impl<E: Pairing> ProverSetup<E> {
         self.serialize_compressed(&mut buffer)?;
         file.write_all(&buffer)?;
         file.flush()?;
-        println!(
+        tracing::info!(
             "Saved prover setup to {} ({} bytes)",
             filename,
             buffer.len()
@@ -304,7 +396,7 @@ impl<E: Pairing> ProverSetup<E> {
         let mut file = File::create(filename)?;
 
         // Write magic marker for combined format
-        file.write_all(b"DORY_COMBINED_SRS")?;
+        file.write_all(b"DORY_COMBINED_URS")?;
 
         // Serialize prover setup
         let mut prover_buffer = Vec::new();
@@ -326,7 +418,7 @@ impl<E: Pairing> ProverSetup<E> {
         file.write_all(&verifier_buffer)?;
 
         file.flush()?;
-        println!(
+        tracing::info!(
             "Saved combined prover+verifier setup to {} (prover: {} bytes, verifier: {} bytes)",
             filename,
             prover_buffer.len(),
@@ -342,13 +434,13 @@ impl<E: Pairing> ProverSetup<E> {
         file.read_to_end(&mut buffer)?;
 
         // Check if this is a combined format file
-        if buffer.len() >= 17 && &buffer[0..17] == b"DORY_COMBINED_SRS" {
+        if buffer.len() >= 17 && &buffer[0..17] == b"DORY_COMBINED_URS" {
             // Combined format - extract prover setup
             let mut offset = 17;
 
             // Read prover setup length
             if buffer.len() < offset + 8 {
-                return Err("Invalid combined SRS file format".into());
+                return Err("Invalid combined URS file format".into());
             }
             let prover_len = u64::from_le_bytes([
                 buffer[offset],
@@ -364,16 +456,16 @@ impl<E: Pairing> ProverSetup<E> {
 
             // Read prover setup data
             if buffer.len() < offset + prover_len {
-                return Err("Invalid combined SRS file format".into());
+                return Err("Invalid combined URS file format".into());
             }
             let prover_data = &buffer[offset..offset + prover_len];
             let setup = Self::deserialize_compressed(prover_data)?;
-            println!("Loaded prover setup from combined format file {}", filename);
+            tracing::info!("Loaded prover setup from combined format file {}", filename);
             Ok(setup)
         } else {
             // Legacy format - entire file is prover setup
             let setup = Self::deserialize_compressed(&buffer[..])?;
-            println!("Loaded prover setup from legacy format file {}", filename);
+            tracing::info!("Loaded prover setup from legacy format file {}", filename);
             Ok(setup)
         }
     }
@@ -391,7 +483,7 @@ impl<E: Pairing> VerifierSetup<E> {
         let mut chi = Vec::with_capacity(max_log_n + 1);
 
         for k in 0..=max_log_n {
-            println!("k: {k}");
+            tracing::debug!("Creating verifier setup for k={}", k);
             if k == 0 {
                 delta_1l.push(E::GT::identity());
                 delta_1r.push(E::GT::identity());
@@ -452,13 +544,13 @@ impl<E: Pairing> VerifierSetup<E> {
         file.read_to_end(&mut buffer)?;
 
         // Check if this is a combined format file
-        if buffer.len() >= 17 && &buffer[0..17] == b"DORY_COMBINED_SRS" {
+        if buffer.len() >= 17 && &buffer[0..17] == b"DORY_COMBINED_URS" {
             // Combined format - extract verifier setup
             let mut offset = 17;
 
             // Read prover setup length
             if buffer.len() < offset + 8 {
-                return Err("Invalid combined SRS file format".into());
+                return Err("Invalid combined URS file format".into());
             }
             let prover_len = u64::from_le_bytes([
                 buffer[offset],
@@ -474,7 +566,7 @@ impl<E: Pairing> VerifierSetup<E> {
 
             // Read verifier setup length
             if buffer.len() < offset + 8 {
-                return Err("Invalid combined SRS file format".into());
+                return Err("Invalid combined URS file format".into());
             }
             let verifier_len = u64::from_le_bytes([
                 buffer[offset],
@@ -490,11 +582,11 @@ impl<E: Pairing> VerifierSetup<E> {
 
             // Read verifier setup data
             if buffer.len() < offset + verifier_len {
-                return Err("Invalid combined SRS file format".into());
+                return Err("Invalid combined URS file format".into());
             }
             let verifier_data = &buffer[offset..offset + verifier_len];
             let setup = Self::deserialize_compressed(verifier_data)?;
-            println!(
+            tracing::info!(
                 "Loaded verifier setup from combined format file {}",
                 filename
             );

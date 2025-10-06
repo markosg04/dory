@@ -1,24 +1,19 @@
 #![allow(missing_docs)]
-use ark_bn254::{Fq12, Fr, G1Affine};
-use dory::{
-    arithmetic::{Field, Group, MultiScalarMul, Pairing},
-    builder::{DoryProofBuilder, DoryVerifyBuilder},
-    inner_product::{inner_product_prove, inner_product_verify},
-    setup::ProverSetup,
-    state::{DoryProverState, DoryVerifierState},
-    toy_transcript::ToyTranscript,
-};
+use ark_bn254::{Fq12, Fr, G1Affine, G2Affine};
+use ark_ff::UniformRand;
+use dory::toy_transcript::ToyTranscript;
+use dory::*;
 
-use dory::curve::{
-    test_rng, ArkBn254Pairing, G2AffineWrapper, OptimizedMsmG1, OptimizedMsmG2,
-};
+use dory::arithmetic::{Group, MultiScalarMul, Pairing};
+use dory::curve::{test_rng, ArkBn254Pairing, G2AffineWrapper, OptimizedMsmG1, OptimizedMsmG2};
+use std::ops::Add;
 
 // Helper function to generate test vectors and states
 fn setup_test_environment(
     log_n: usize,
 ) -> (
     ProverSetup<ArkBn254Pairing>,
-    dory::setup::VerifierSetup<ArkBn254Pairing>,
+    VerifierSetup<ArkBn254Pairing>,
     DoryProverState<ArkBn254Pairing>,
     DoryVerifierState<ArkBn254Pairing>,
 ) {
@@ -30,14 +25,12 @@ fn setup_test_environment(
     let verifier_setup = prover_setup.to_verifier_setup();
 
     // Generate vectors
-    let v1: Vec<G1Affine> = (0..vector_size)
-        .map(|_| G1Affine::random(&mut rng))
-        .collect();
+    let v1: Vec<G1Affine> = (0..vector_size).map(|_| G1Affine::rand(&mut rng)).collect();
     let v2: Vec<G2AffineWrapper> = (0..vector_size)
-        .map(|_| G2AffineWrapper::random(&mut rng))
+        .map(|_| G2AffineWrapper::from(G2Affine::rand(&mut rng)))
         .collect();
-    let s1: Vec<Fr> = (0..vector_size).map(|_| Fr::random(&mut rng)).collect();
-    let s2: Vec<Fr> = (0..vector_size).map(|_| Fr::random(&mut rng)).collect();
+    let s1: Vec<Fr> = (0..vector_size).map(|_| Fr::rand(&mut rng)).collect();
+    let s2: Vec<Fr> = (0..vector_size).map(|_| Fr::rand(&mut rng)).collect();
 
     // Create states
     let prover_state = DoryProverState::new(v1.clone(), v2.clone(), s1.clone(), s2.clone(), log_n);
@@ -53,7 +46,7 @@ fn setup_test_environment(
 
 #[test]
 fn test_soundness_tamper_d1_left() {
-    println!("=== Testing soundness: tampering with d1_left ===");
+    tracing::debug!("=== Testing soundness: tampering with d1_left ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -61,14 +54,11 @@ fn test_soundness_tamper_d1_left() {
     let (prover_setup, verifier_setup, prover_state, verifier_state) =
         setup_test_environment(log_n);
 
-    // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    // Generate proof using internal builder API
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -79,7 +69,7 @@ fn test_soundness_tamper_d1_left() {
 
     // Tamper with d1_left
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[0].d1_left = Fq12::random(&mut rng);
+        proof_builder.first_messages[0].d1_left = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -93,14 +83,14 @@ fn test_soundness_tamper_d1_left() {
             "Verification should fail with corrupted d1_left"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_d1_right() {
-    println!("=== Testing soundness: tampering with d1_right ===");
+    tracing::debug!("=== Testing soundness: tampering with d1_right ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -109,13 +99,10 @@ fn test_soundness_tamper_d1_right() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -126,7 +113,7 @@ fn test_soundness_tamper_d1_right() {
 
     // Tamper with d1_right
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[0].d1_right = Fq12::random(&mut rng);
+        proof_builder.first_messages[0].d1_right = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -140,14 +127,14 @@ fn test_soundness_tamper_d1_right() {
             "Verification should fail with corrupted d1_right"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_d2_left() {
-    println!("=== Testing soundness: tampering with d2_left ===");
+    tracing::debug!("=== Testing soundness: tampering with d2_left ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -156,13 +143,10 @@ fn test_soundness_tamper_d2_left() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -173,7 +157,7 @@ fn test_soundness_tamper_d2_left() {
 
     // Tamper with d2_left
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[0].d2_left = Fq12::random(&mut rng);
+        proof_builder.first_messages[0].d2_left = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -187,14 +171,14 @@ fn test_soundness_tamper_d2_left() {
             "Verification should fail with corrupted d2_left"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_d2_right() {
-    println!("=== Testing soundness: tampering with d2_right ===");
+    tracing::debug!("=== Testing soundness: tampering with d2_right ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -203,13 +187,10 @@ fn test_soundness_tamper_d2_right() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -220,7 +201,7 @@ fn test_soundness_tamper_d2_right() {
 
     // Tamper with d2_right
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[0].d2_right = Fq12::random(&mut rng);
+        proof_builder.first_messages[0].d2_right = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -234,14 +215,14 @@ fn test_soundness_tamper_d2_right() {
             "Verification should fail with corrupted d2_right"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e1_beta() {
-    println!("=== Testing soundness: tampering with e1_beta ===");
+    tracing::debug!("=== Testing soundness: tampering with e1_beta ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -250,13 +231,10 @@ fn test_soundness_tamper_e1_beta() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -267,7 +245,7 @@ fn test_soundness_tamper_e1_beta() {
 
     // Tamper with e1_beta
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[0].e1_beta = G1Affine::random(&mut rng);
+        proof_builder.first_messages[0].e1_beta = G1Affine::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -281,14 +259,14 @@ fn test_soundness_tamper_e1_beta() {
             "Verification should fail with corrupted e1_beta"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e2_beta() {
-    println!("=== Testing soundness: tampering with e2_beta ===");
+    tracing::debug!("=== Testing soundness: tampering with e2_beta ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -297,13 +275,10 @@ fn test_soundness_tamper_e2_beta() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -314,7 +289,7 @@ fn test_soundness_tamper_e2_beta() {
 
     // Tamper with e2_beta
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[0].e2_beta = G2AffineWrapper::random(&mut rng);
+        proof_builder.first_messages[0].e2_beta = G2AffineWrapper::from(G2Affine::rand(&mut rng));
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -328,14 +303,14 @@ fn test_soundness_tamper_e2_beta() {
             "Verification should fail with corrupted e2_beta"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_c_plus() {
-    println!("=== Testing soundness: tampering with c_plus ===");
+    tracing::debug!("=== Testing soundness: tampering with c_plus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -344,13 +319,10 @@ fn test_soundness_tamper_c_plus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -361,7 +333,7 @@ fn test_soundness_tamper_c_plus() {
 
     // Tamper with c_plus
     if !proof_builder.second_messages.is_empty() {
-        proof_builder.second_messages[0].c_plus = Fq12::random(&mut rng);
+        proof_builder.second_messages[0].c_plus = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -375,14 +347,14 @@ fn test_soundness_tamper_c_plus() {
             "Verification should fail with corrupted c_plus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_c_minus() {
-    println!("=== Testing soundness: tampering with c_minus ===");
+    tracing::debug!("=== Testing soundness: tampering with c_minus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -391,13 +363,10 @@ fn test_soundness_tamper_c_minus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -408,7 +377,7 @@ fn test_soundness_tamper_c_minus() {
 
     // Tamper with c_minus
     if !proof_builder.second_messages.is_empty() {
-        proof_builder.second_messages[0].c_minus = Fq12::random(&mut rng);
+        proof_builder.second_messages[0].c_minus = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -422,14 +391,14 @@ fn test_soundness_tamper_c_minus() {
             "Verification should fail with corrupted c_minus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e1_plus() {
-    println!("=== Testing soundness: tampering with e1_plus ===");
+    tracing::debug!("=== Testing soundness: tampering with e1_plus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -438,13 +407,10 @@ fn test_soundness_tamper_e1_plus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -455,7 +421,7 @@ fn test_soundness_tamper_e1_plus() {
 
     // Tamper with e1_plus
     if !proof_builder.second_messages.is_empty() {
-        proof_builder.second_messages[0].e1_plus = G1Affine::random(&mut rng);
+        proof_builder.second_messages[0].e1_plus = G1Affine::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -469,14 +435,14 @@ fn test_soundness_tamper_e1_plus() {
             "Verification should fail with corrupted e1_plus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e1_minus() {
-    println!("=== Testing soundness: tampering with e1_minus ===");
+    tracing::debug!("=== Testing soundness: tampering with e1_minus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -485,13 +451,10 @@ fn test_soundness_tamper_e1_minus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -502,7 +465,7 @@ fn test_soundness_tamper_e1_minus() {
 
     // Tamper with e1_minus
     if !proof_builder.second_messages.is_empty() {
-        proof_builder.second_messages[0].e1_minus = G1Affine::random(&mut rng);
+        proof_builder.second_messages[0].e1_minus = G1Affine::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -516,14 +479,14 @@ fn test_soundness_tamper_e1_minus() {
             "Verification should fail with corrupted e1_minus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e2_plus() {
-    println!("=== Testing soundness: tampering with e2_plus ===");
+    tracing::debug!("=== Testing soundness: tampering with e2_plus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -532,13 +495,10 @@ fn test_soundness_tamper_e2_plus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -549,7 +509,7 @@ fn test_soundness_tamper_e2_plus() {
 
     // Tamper with e2_plus
     if !proof_builder.second_messages.is_empty() {
-        proof_builder.second_messages[0].e2_plus = G2AffineWrapper::random(&mut rng);
+        proof_builder.second_messages[0].e2_plus = G2AffineWrapper::from(G2Affine::rand(&mut rng));
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -563,14 +523,14 @@ fn test_soundness_tamper_e2_plus() {
             "Verification should fail with corrupted e2_plus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_e2_minus() {
-    println!("=== Testing soundness: tampering with e2_minus ===");
+    tracing::debug!("=== Testing soundness: tampering with e2_minus ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -579,13 +539,10 @@ fn test_soundness_tamper_e2_minus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -596,7 +553,7 @@ fn test_soundness_tamper_e2_minus() {
 
     // Tamper with e2_minus
     if !proof_builder.second_messages.is_empty() {
-        proof_builder.second_messages[0].e2_minus = G2AffineWrapper::random(&mut rng);
+        proof_builder.second_messages[0].e2_minus = G2AffineWrapper::from(G2Affine::rand(&mut rng));
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -610,14 +567,14 @@ fn test_soundness_tamper_e2_minus() {
             "Verification should fail with corrupted e2_minus"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_final_e1() {
-    println!("=== Testing soundness: tampering with final e1 ===");
+    tracing::debug!("=== Testing soundness: tampering with final e1 ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -626,13 +583,10 @@ fn test_soundness_tamper_final_e1() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -643,7 +597,7 @@ fn test_soundness_tamper_final_e1() {
 
     // Tamper with final e1
     if let Some(final_msg) = &mut proof_builder.final_message {
-        final_msg.e1 = G1Affine::random(&mut rng);
+        final_msg.e1 = G1Affine::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -657,14 +611,14 @@ fn test_soundness_tamper_final_e1() {
             "Verification should fail with corrupted final e1"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_final_e2() {
-    println!("=== Testing soundness: tampering with final e2 ===");
+    tracing::debug!("=== Testing soundness: tampering with final e2 ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -673,13 +627,10 @@ fn test_soundness_tamper_final_e2() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -690,7 +641,7 @@ fn test_soundness_tamper_final_e2() {
 
     // Tamper with final e2
     if let Some(final_msg) = &mut proof_builder.final_message {
-        final_msg.e2 = G2AffineWrapper::random(&mut rng);
+        final_msg.e2 = G2AffineWrapper::from(G2Affine::rand(&mut rng));
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -704,14 +655,14 @@ fn test_soundness_tamper_final_e2() {
             "Verification should fail with corrupted final e2"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_swap_d1_values() {
-    println!("=== Testing soundness: swapping d1_left and d1_right ===");
+    tracing::debug!("=== Testing soundness: swapping d1_left and d1_right ===");
     let domain = b"test_domain";
     let log_n = 8;
 
@@ -719,13 +670,10 @@ fn test_soundness_swap_d1_values() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -752,14 +700,14 @@ fn test_soundness_swap_d1_values() {
             "Verification should fail with swapped d1 values"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_swap_c_values() {
-    println!("=== Testing soundness: swapping c_plus and c_minus ===");
+    tracing::debug!("=== Testing soundness: swapping c_plus and c_minus ===");
     let domain = b"test_domain";
     let log_n = 8;
 
@@ -767,13 +715,10 @@ fn test_soundness_swap_c_values() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -800,14 +745,14 @@ fn test_soundness_swap_c_values() {
             "Verification should fail with swapped c values"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_scale_d1_values() {
-    println!("=== Testing soundness: scaling d1 values ===");
+    tracing::debug!("=== Testing soundness: scaling d1 values ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -816,13 +761,10 @@ fn test_soundness_scale_d1_values() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -833,7 +775,7 @@ fn test_soundness_scale_d1_values() {
 
     // Scale d1 values by a random factor
     if !proof_builder.first_messages.is_empty() {
-        let scale = Fr::random(&mut rng);
+        let scale = Fr::rand(&mut rng);
         proof_builder.first_messages[0].d1_left =
             proof_builder.first_messages[0].d1_left.scale(&scale);
         proof_builder.first_messages[0].d1_right =
@@ -851,14 +793,14 @@ fn test_soundness_scale_d1_values() {
             "Verification should fail with scaled values"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_multi_round_tampering() {
-    println!("=== Testing soundness: tampering across multiple rounds ===");
+    tracing::debug!("=== Testing soundness: tampering across multiple rounds ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -867,13 +809,10 @@ fn test_soundness_multi_round_tampering() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -885,9 +824,9 @@ fn test_soundness_multi_round_tampering() {
     // Tamper with messages in different rounds
     if proof_builder.first_messages.len() >= 2 {
         // Tamper with first round
-        proof_builder.first_messages[0].d1_left = Fq12::random(&mut rng);
+        proof_builder.first_messages[0].d1_left = Fq12::rand(&mut rng);
         // Tamper with second round
-        proof_builder.first_messages[1].e1_beta = G1Affine::random(&mut rng);
+        proof_builder.first_messages[1].e1_beta = G1Affine::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -901,14 +840,14 @@ fn test_soundness_multi_round_tampering() {
             "Verification should fail with multi-round tampering"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_tamper_last_round() {
-    println!("=== Testing soundness: tampering with last round ===");
+    tracing::debug!("=== Testing soundness: tampering with last round ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -917,13 +856,10 @@ fn test_soundness_tamper_last_round() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -935,7 +871,7 @@ fn test_soundness_tamper_last_round() {
     // Tamper with the last round
     let last_round = proof_builder.first_messages.len() - 1;
     if !proof_builder.first_messages.is_empty() {
-        proof_builder.first_messages[last_round].d2_right = Fq12::random(&mut rng);
+        proof_builder.first_messages[last_round].d2_right = Fq12::rand(&mut rng);
 
         let verify_builder =
             DoryVerifyBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_from_proof(
@@ -949,14 +885,14 @@ fn test_soundness_tamper_last_round() {
             "Verification should fail with last round tampering"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }
 
 #[test]
 fn test_soundness_maintain_sum_attack() {
-    println!("=== Testing soundness: maintaining sum but with wrong values ===");
+    tracing::debug!("=== Testing soundness: maintaining sum but with wrong values ===");
     let mut rng = test_rng();
     let domain = b"test_domain";
     let log_n = 8;
@@ -965,13 +901,10 @@ fn test_soundness_maintain_sum_attack() {
         setup_test_environment(log_n);
 
     // Generate proof
-    let builder = DoryProofBuilder::<
-        G1Affine,
-        G2AffineWrapper,
-        Fq12,
-        Fr,
-        ToyTranscript,
-    >::new_with_toy_transcript(domain);
+    #[cfg(feature = "recursion")]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
+    #[cfg(not(feature = "recursion"))]
+    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
             builder,
@@ -988,7 +921,7 @@ fn test_soundness_maintain_sum_attack() {
             .add(&proof_builder.first_messages[0].d1_right);
 
         // Create new values that maintain the sum but are individually wrong
-        let random_val = Fq12::random(&mut rng);
+        let random_val = Fq12::rand(&mut rng);
         proof_builder.first_messages[0].d1_left = random_val.clone();
         proof_builder.first_messages[0].d1_right = d1_sum - random_val;
 
@@ -1004,7 +937,7 @@ fn test_soundness_maintain_sum_attack() {
             "Verification should fail even with maintained sum"
         );
         if let Err(round) = result {
-            println!("✓ Verification correctly failed at round: {}", round);
+            tracing::debug!("Verification correctly failed at round: {}", round);
         }
     }
 }

@@ -8,6 +8,7 @@ use crate::{
         FirstReduceChallenge, FirstReduceMessage, FoldScalarsChallenge, ScalarProductMessage,
         SecondReduceChallenge, SecondReduceMessage,
     },
+    offload::scale_gt_with_offload,
     setup::VerifierSetup,
     state::{DoryProverState, DoryVerifierState, VerifierState},
 };
@@ -20,6 +21,7 @@ impl<E: Pairing> crate::ProverState for DoryProverState<E>
 where
     E::G1: Group,
     E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
+    E::GT: Group<Scalar = <E::G1 as Group>::Scalar>,
 {
     type G1 = E::G1;
     type G2 = E::G2;
@@ -53,10 +55,9 @@ where
         let g1_prime = &setup.g1_vec()[..1 << (self.nu - 1)];
 
         let (d1_left, d1_right, d2_left, d2_right) =
-                // Use cached multi-pairing if available, otherwise fall back to regular multi-pairing
-                if setup.g1_cache.is_some() && setup.g2_cache.is_some() {
+                // Use cached G2 if available, always use runtime G1
+                if setup.g2_cache.is_some() {
                     let g2_prime_count = 1 << (self.nu - 1);
-                    let g1_prime_count = 1 << (self.nu - 1);
 
                     // D₁L,R = ⟨v₁L/R , Γ₂′⟩ - v1 is runtime, g2_prime uses cache
                     let d1_left = E::multi_pair_cached(
@@ -76,23 +77,9 @@ where
                         setup.g2_cache.as_ref(), // G2: use first 2^(nu-1) cached elements
                     );
 
-                    // D₂L,R = ⟨Γ₁′ , v₂L/R⟩ - g1_prime uses cache, v2 is runtime
-                    let d2_left = E::multi_pair_cached(
-                        None,
-                        Some(g1_prime_count),
-                        setup.g1_cache.as_ref(), // G1: use first 2^(nu-1) cached elements
-                        Some(v2_l),
-                        None,
-                        None, // G2: use runtime points v2_l
-                    );
-                    let d2_right = E::multi_pair_cached(
-                        None,
-                        Some(g1_prime_count),
-                        setup.g1_cache.as_ref(), // G1: use first 2^(nu-1) cached elements
-                        Some(v2_r),
-                        None,
-                        None, // G2: use runtime points v2_r
-                    );
+                    // D₂L,R = ⟨Γ₁′ , v₂L/R⟩ - g1_prime is runtime, v2 is runtime
+                    let d2_left = E::multi_pair(g1_prime, v2_l);
+                    let d2_right = E::multi_pair(g1_prime, v2_r);
                     (d1_left, d1_right, d2_left, d2_right)
                 } else {
                     // Fallback to regular multi-pairing when cache is not available
@@ -139,7 +126,7 @@ where
         // Prover work P(*):
         // ṽ₁ ← ṽ₁ + β·Γ₁
         // Use cached version if cache is available
-        if setup.g1_cache.is_some() || setup.g2_cache.is_some() {
+        if setup.g1_cache.is_some() && setup.g2_cache.is_some() {
             M1::fixed_scalar_variable_with_add_cached(
                 g1_prime.len(),
                 setup.g1_cache.as_ref(),
@@ -153,7 +140,7 @@ where
 
         // ṽ₂ ← ṽ₂ + β⁻¹·Γ₂
         // Use cached version if cache is available
-        if setup.g1_cache.is_some() || setup.g2_cache.is_some() {
+        if setup.g1_cache.is_some() && setup.g2_cache.is_some() {
             M2::fixed_scalar_variable_with_add_cached(
                 g2_prime.len(),
                 setup.g1_cache.as_ref(),
@@ -273,7 +260,11 @@ where
         self,
         setup: &Self::Setup,
         chall: FoldScalarsChallenge<Self::Scalar>,
-    ) -> ScalarProductMessage<Self::G1, Self::G2>
+    ) -> (
+        ScalarProductMessage<Self::G1, Self::G2>,
+        Self::Scalar,
+        Self::Scalar,
+    )
     where
         M1: MultiScalarMul<Self::G1>,
         M2: MultiScalarMul<Self::G2>,
@@ -286,6 +277,10 @@ where
 
         let (gamma, gamma_inv) = (chall.gamma, chall.gamma_inverse);
 
+        // Save s1[0] and s2[0] before consuming self
+        let s1_final = self.s1[0].clone();
+        let s2_final = self.s2[0].clone();
+
         // Apply `fold-scalars`` transformation to the vectors:
         // v1' = v1 + γ * s1 * H1
         // v2' = v2 + γ^(-1) * s2 * H2
@@ -296,10 +291,12 @@ where
         let gamma_inv_s2_product = gamma_inv.mul(&self.s2[0]);
         let e2 = self.v2[0].add(&setup.h2().scale(&gamma_inv_s2_product));
 
-        ScalarProductMessage {
+        let message = ScalarProductMessage {
             e1: e1.clone(),
             e2: e2.clone(),
-        }
+        };
+
+        (message, s1_final, s2_final)
     }
 }
 
@@ -426,17 +423,22 @@ where
         // Add χᵢ
         new_c = new_c.add(chi);
 
-        // Add β * D₂
-        new_c = new_c.add(&self.d_2.scale(&beta));
+        // Add β * D₂ (offloaded when recursion_ops available)
+        let d2_scaled = scale_gt_with_offload::<E>(&self.d_2, &beta, &mut self.offload_ctx);
+        new_c = new_c.add(&d2_scaled);
 
-        // Add β⁻¹ * D₁
-        new_c = new_c.add(&self.d_1.scale(&beta_inv));
+        // Add β⁻¹ * D₁ (offloaded when recursion_ops available)
+        let d1_scaled = scale_gt_with_offload::<E>(&self.d_1, &beta_inv, &mut self.offload_ctx);
+        new_c = new_c.add(&d1_scaled);
 
-        // Add α * C_plus
-        new_c = new_c.add(&c_plus.scale(&alpha));
+        // Add α * C_plus (offloaded when recursion_ops available)
+        let c_plus_scaled = scale_gt_with_offload::<E>(&c_plus, &alpha, &mut self.offload_ctx);
+        new_c = new_c.add(&c_plus_scaled);
 
-        // Add α⁻¹ * C_minus
-        new_c = new_c.add(&c_minus.scale(&alpha_inv));
+        // Add α⁻¹ * C_minus (offloaded when recursion_ops available)
+        let c_minus_scaled =
+            scale_gt_with_offload::<E>(&c_minus, &alpha_inv, &mut self.offload_ctx);
+        new_c = new_c.add(&c_minus_scaled);
 
         self.c = new_c;
     }
@@ -456,33 +458,46 @@ where
         let (alpha, alpha_inv) = alpha_pair;
         let (beta, beta_inv) = beta_pair;
 
-        // Get the precomputed values for the current round
         let delta_1l = &setup.delta_1l[self.nu];
         let delta_1r = &setup.delta_1r[self.nu];
         let delta_2l = &setup.delta_2l[self.nu];
         let delta_2r = &setup.delta_2r[self.nu];
 
         // D_1' <- alpha * D_1L + D_1R + alpha * beta * Delta_1L + beta * Delta_1R
-        let mut new_d_1 = d_1l.scale(&alpha);
+        // Use offloaded operation for d_1l.scale(&alpha)
+        let d_1l_scaled = scale_gt_with_offload::<E>(&d_1l, &alpha, &mut self.offload_ctx);
+
+        let mut new_d_1 = d_1l_scaled;
         new_d_1 = new_d_1.add(&d_1r);
 
-        // alpha * beta * Delta_1L
+        // alpha * beta * Delta_1L (offloaded when recursion_ops available)
         let alpha_beta = alpha.mul(&beta);
-        new_d_1 = new_d_1.add(&delta_1l.scale(&alpha_beta));
+        let delta_1l_scaled =
+            scale_gt_with_offload::<E>(&delta_1l, &alpha_beta, &mut self.offload_ctx);
 
-        // beta * Delta_1R
-        new_d_1 = new_d_1.add(&delta_1r.scale(&beta));
+        new_d_1 = new_d_1.add(&delta_1l_scaled);
+
+        // beta * Delta_1R (offloaded when recursion_ops available)
+        let delta_1r_scaled = scale_gt_with_offload::<E>(&delta_1r, &beta, &mut self.offload_ctx);
+        new_d_1 = new_d_1.add(&delta_1r_scaled);
 
         // D_2' <- alpha_inv * D_2L + D_2R + alpha_inv * beta_inv * Delta_2L + beta_inv * Delta_2R
-        let mut new_d_2 = d_2l.scale(&alpha_inv);
+        // Use offloaded operation for d_2l.scale(&alpha_inv)
+        let d_2l_scaled = scale_gt_with_offload::<E>(&d_2l, &alpha_inv, &mut self.offload_ctx);
+
+        let mut new_d_2 = d_2l_scaled;
         new_d_2 = new_d_2.add(&d_2r);
 
-        // alpha_inv * beta_inv * Delta_2L
+        // alpha_inv * beta_inv * Delta_2L (offloaded when recursion_ops available)
         let alpha_inv_beta_inv = alpha_inv.mul(&beta_inv);
-        new_d_2 = new_d_2.add(&delta_2l.scale(&alpha_inv_beta_inv));
+        let delta_2l_scaled =
+            scale_gt_with_offload::<E>(&delta_2l, &alpha_inv_beta_inv, &mut self.offload_ctx);
+        new_d_2 = new_d_2.add(&delta_2l_scaled);
 
-        // beta_inv * Delta_2R
-        new_d_2 = new_d_2.add(&delta_2r.scale(&beta_inv));
+        // beta_inv * Delta_2R (offloaded when recursion_ops available)
+        let delta_2r_scaled =
+            scale_gt_with_offload::<E>(&delta_2r, &beta_inv, &mut self.offload_ctx);
+        new_d_2 = new_d_2.add(&delta_2r_scaled);
 
         self.d_1 = new_d_1;
         self.d_2 = new_d_2;
@@ -551,16 +566,22 @@ where
 
         let mut new_c = self.c.clone();
 
-        // Term 1: s1_final * s2_final * setup.ht
-        new_c = new_c.add(&setup.ht.scale(&s1_final.mul(&s2_final)));
+        // Term 1: s1_final * s2_final * setup.ht (offloaded when recursion_ops available)
+        let s_product = s1_final.mul(&s2_final);
+        let ht_scaled = scale_gt_with_offload::<E>(&setup.ht, &s_product, &mut self.offload_ctx);
+        new_c = new_c.add(&ht_scaled);
 
-        // Term 2: γ * e(setup.h1, self.e_2)
+        // Term 2: γ * e(setup.h1, self.e_2) (offloaded when recursion_ops available)
         let pairing_h1_e2 = E::pair(&setup.h1, &self.e_2);
-        new_c = new_c.add(&pairing_h1_e2.scale(&gamma));
+        let pairing_h1_e2_scaled =
+            scale_gt_with_offload::<E>(&pairing_h1_e2, &gamma, &mut self.offload_ctx);
+        new_c = new_c.add(&pairing_h1_e2_scaled);
 
-        // Term 3: γ⁻¹ * e(self.e_1, setup.h2)
+        // Term 3: γ⁻¹ * e(self.e_1, setup.h2) (offloaded when recursion_ops available)
         let pairing_e1_h2 = E::pair(&self.e_1, &setup.h2);
-        new_c = new_c.add(&pairing_e1_h2.scale(&gamma_inv));
+        let pairing_e1_h2_scaled =
+            scale_gt_with_offload::<E>(&pairing_e1_h2, &gamma_inv, &mut self.offload_ctx);
+        new_c = new_c.add(&pairing_e1_h2_scaled);
 
         self.c = new_c;
 
@@ -595,12 +616,11 @@ where
     /// pairing(E_1 + Gamma_1_0 * d, E_2 + Gamma_2_0 * d_inv) ==
     /// (C + chi[0] + D_2 * d + D_1 * d_inv)
     fn verify_final_pairing(
-        &self,
+        &mut self,
         setup: &Self::Setup,
         message: &ScalarProductMessage<Self::G1, Self::G2>,
         d_pair: ScalarProductChallenge<Self::Scalar>, // This should be a fresh challenge 'd', not gamma
     ) -> bool {
-        // challenge
         let (d, d_inverse) = (d_pair.d, d_pair.d_inverse);
 
         // Assert that we're at the appropriate round (nu = 0)
@@ -618,11 +638,13 @@ where
         // Add chi[0]
         right_side = right_side.add(&setup.chi[0]);
 
-        // Add D_2 * gamma
-        right_side = right_side.add(&self.d_2.scale(&d));
+        // Add D_2 * d (offloaded when recursion_ops available)
+        let d2_scaled = scale_gt_with_offload::<E>(&self.d_2, &d, &mut self.offload_ctx);
+        right_side = right_side.add(&d2_scaled);
 
-        // Add D_1 * gamma_inv
-        right_side = right_side.add(&self.d_1.scale(&d_inverse));
+        // Add D_1 * d_inverse (offloaded when recursion_ops available)
+        let d1_scaled = scale_gt_with_offload::<E>(&self.d_1, &d_inverse, &mut self.offload_ctx);
+        right_side = right_side.add(&d1_scaled);
 
         // Compare the two sides
         left_side == right_side

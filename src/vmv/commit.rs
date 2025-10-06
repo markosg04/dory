@@ -17,7 +17,7 @@ pub fn compute_polynomial_commitment<
     offset: usize, // Starting position in matrix
     sigma: usize,  // log₂(matrix_width)
     prover_setup: &ProverSetup<E>,
-) -> E::GT {
+) -> (E::GT, Vec<G1>) {
     let num_columns = 1 << sigma;
 
     let rows_offset = offset / num_columns; // Row start position
@@ -28,45 +28,23 @@ pub fn compute_polynomial_commitment<
 
     // --- TIER 2: Multi-pairing to combine row commitments ---
 
-    let g2_elements = &prover_setup.g2_vec()[rows_offset..rows_offset + row_commitments.len()];
-    E::multi_pair(&row_commitments, g2_elements) // Final commitment in GT
-}
+    // Use cached multi-pairing if G2 cache is available, otherwise fall back to regular multi-pairing
+    let commitment = if prover_setup.g2_cache.is_some() {
+        // Use cached G2 values from prover setup
+        E::multi_pair_cached(
+            Some(&row_commitments),
+            None,
+            None, // G1: use runtime points row_commitments
+            None,
+            Some(row_commitments.len()),
+            prover_setup.g2_cache.as_ref(), // G2: use cached elements from rows_offset
+        )
+    } else {
+        // Fall back to regular multi-pairing
+        let g2_elements = &prover_setup.g2_vec()[rows_offset..rows_offset + row_commitments.len()];
+        E::multi_pair(&row_commitments, g2_elements)
+    };
 
-/// Create commitment batch, batching factors, and evaluations for verification
-/// This provides the values needed for verify_evaluation_proof
-pub fn commit_and_evaluate_batch<
-    E: Pairing<G1 = G1>,
-    M1: MultiScalarMul<G1>,
-    P: Polynomial<F, G1> + ?Sized,
-    F: Field,
-    G1: Group<Scalar = F>,
->(
-    poly: &P,
-    point: &[F],
-    offset: usize,
-    sigma: usize,
-    prover_setup: &ProverSetup<E>,
-) -> (
-    Vec<E::GT>, // commitment_batch
-    Vec<F>,     // batching_factors
-    Vec<F>,     // evaluations
-)
-where
-    F: Field + Clone,
-{
-    // Compute the commitment to the polynomial
-    let commitment =
-        compute_polynomial_commitment::<E, M1, P, F, G1>(poly, offset, sigma, prover_setup);
-
-    // Compute the evaluation of the polynomial at the point
-    let evaluation = poly.evaluate(point);
-
-    // For a single polynomial, we use a single batching factor of 1
-    let commitment_batch = vec![commitment];
-
-    // @TODO(markosg04): support batching
-    let batching_factors = vec![F::one()];
-    let evaluations = vec![evaluation]; // for now just one evaluation
-
-    (commitment_batch, batching_factors, evaluations)
+    // Return `row_commitments` because they will come in handy for the opening proof
+    (commitment, row_commitments)
 }

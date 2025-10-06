@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
-use crate::arithmetic::*;
 use crate::poly::Polynomial;
+use crate::{arithmetic::*, compute_polynomial_commitment, multilinear_lagrange_vec, ProverSetup};
+use ark_bn254::Fq;
 use ark_bn254::{Bn254, Fq12, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{
     bn::{G1Prepared as BnG1Prepared, G2Prepared as BnG2Prepared},
@@ -11,14 +12,15 @@ use ark_ff::{Field as ArkField, One, PrimeField, UniformRand, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError};
 use ark_serialize::{Read, Valid, Validate, Write};
 use ark_std::rand::{rngs::StdRng, RngCore, SeedableRng};
-use rayon::prelude::*;
-
 use jolt_optimizations::{
-    dory_g1::precompute_g1_generators_windowed2_signed,
-    dory_g2::precompute_g2_generators_windowed2_signed, vector_add_scalar_mul_g1_windowed2_signed,
+    dory_g1::precompute_g1_generators_windowed2_signed, vector_add_scalar_mul_g1_windowed2_signed,
     vector_add_scalar_mul_g2_windowed2_signed, PrecomputedShamir4Data, Windowed2Signed2Data,
     Windowed2Signed4Data,
 };
+use rayon::prelude::*;
+
+#[cfg(feature = "recursion")]
+use jolt_optimizations::ExponentiationSteps;
 
 /// Create a fixed RNG for deterministic tests
 pub fn test_rng() -> StdRng {
@@ -76,6 +78,52 @@ impl Field for Fr {
     }
 }
 
+impl Field for Fq {
+    fn zero() -> Self {
+        Zero::zero()
+    }
+    fn one() -> Self {
+        One::one()
+    }
+    fn is_zero(&self) -> bool {
+        Zero::is_zero(self)
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        *self + *rhs
+    }
+    fn sub(&self, rhs: &Self) -> Self {
+        *self - *rhs
+    }
+    fn mul(&self, rhs: &Self) -> Self {
+        *self * *rhs
+    }
+    fn inv(&self) -> Option<Self> {
+        if Zero::is_zero(self) {
+            None
+        } else {
+            Some(self.inverse().unwrap())
+        }
+    }
+    fn random<R: RngCore>(_rng: &mut R) -> Self {
+        // We use our own fixed RNG for testing
+        let mut rng = test_rng();
+        Fq::rand(&mut rng)
+    }
+
+    fn from_u64(val: u64) -> Self {
+        Fq::from(val)
+    }
+
+    fn from_i64(val: i64) -> Self {
+        if val >= 0 {
+            Fq::from(val as u64)
+        } else {
+            -Fq::from((-val) as u64)
+        }
+    }
+}
+
 /* --------- Group trait for G1Affine -------------------------------- */
 impl Group for G1Affine {
     type Scalar = Fr;
@@ -99,6 +147,11 @@ impl Group for G1Affine {
     fn random<R: RngCore>(_rng: &mut R) -> Self {
         let mut rng = test_rng();
         G1Projective::rand(&mut rng).into_affine()
+    }
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, _k: &Self::Scalar) -> (Self, ExponentiationSteps) {
+        panic!("scale_with_steps not implemented for G1Affine - use only for Fq12")
     }
 }
 
@@ -235,6 +288,11 @@ impl Group for G2AffineWrapper {
         let mut rng = test_rng();
         G2AffineWrapper(G2Projective::rand(&mut rng).into_affine())
     }
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, _k: &Self::Scalar) -> (Self, ExponentiationSteps) {
+        panic!("scale_with_steps not implemented for G2AffineWrapper - use only for Fq12")
+    }
 }
 
 /* --------- Group trait for Fq12 (GT) ------------------------------- */
@@ -267,6 +325,12 @@ impl Group for Fq12 {
         // We use our own fixed RNG for testing
         let mut rng = test_rng();
         Self::rand(&mut rng)
+    }
+
+    #[cfg(feature = "recursion")]
+    fn scale_with_steps(&self, k: &Self::Scalar) -> (Self, ExponentiationSteps) {
+        let steps = ExponentiationSteps::new(*self, *k);
+        (steps.result, steps)
     }
 }
 
@@ -557,7 +621,6 @@ impl G1Cache {
         self.entries.get(index).map(|e| &e.prepared)
     }
 
-
     /// Number of cached entries
     pub fn len(&self) -> usize {
         self.entries.len()
@@ -578,8 +641,8 @@ impl G1Cache {
     pub fn print_memory_stats(&self) {
         use std::mem;
 
-        println!("=== G1 Cache Memory Usage ===");
-        println!("Number of entries: {}", self.entries.len());
+        tracing::debug!("=== G1 Cache Memory Usage ===");
+        tracing::debug!("Number of entries: {}", self.entries.len());
 
         // Calculate entries vector memory
         let entries_capacity = self.entries.capacity();
@@ -587,26 +650,26 @@ impl G1Cache {
         let entries_allocated = entries_capacity * entry_size;
         let entries_used = self.entries.len() * entry_size;
 
-        println!("\nEntries Vector:");
-        println!("  Entry struct size: {} bytes", entry_size);
-        println!("  Capacity: {} entries", entries_capacity);
-        println!("  Used: {} entries", self.entries.len());
-        println!(
+        tracing::debug!("Entries Vector:");
+        tracing::debug!("  Entry struct size: {} bytes", entry_size);
+        tracing::debug!("  Capacity: {} entries", entries_capacity);
+        tracing::debug!("  Used: {} entries", self.entries.len());
+        tracing::debug!(
             "  Allocated memory: {} bytes ({:.2} MB)",
             entries_allocated,
             entries_allocated as f64 / 1_048_576.0
         );
-        println!(
+        tracing::debug!(
             "  Used memory: {} bytes ({:.2} MB)",
             entries_used,
             entries_used as f64 / 1_048_576.0
         );
 
         // Get actual sizes of types
-        println!("\nType sizes:");
-        println!("  G1Affine: {} bytes", mem::size_of::<G1Affine>());
-        println!("  G1Projective: {} bytes", mem::size_of::<G1Projective>());
-        println!(
+        tracing::debug!("Type sizes:");
+        tracing::debug!("  G1Affine: {} bytes", mem::size_of::<G1Affine>());
+        tracing::debug!("  G1Projective: {} bytes", mem::size_of::<G1Projective>());
+        tracing::debug!(
             "  BnG1Prepared: {} bytes",
             mem::size_of::<BnG1Prepared<ark_bn254::Config>>()
         );
@@ -629,16 +692,16 @@ impl G1Cache {
             let windowed_allocated = tables_capacity * estimated_table_size;
             let windowed_used = tables_len * estimated_table_size;
 
-            println!("\nWindowed2Signed2Data:");
-            println!("  Tables count: {}", tables_len);
-            println!("  Tables capacity: {}", tables_capacity);
-            println!("  Estimated per table: {} bytes", estimated_table_size);
-            println!(
+            tracing::debug!("Windowed2Signed2Data:");
+            tracing::debug!("  Tables count: {}", tables_len);
+            tracing::debug!("  Tables capacity: {}", tables_capacity);
+            tracing::debug!("  Estimated per table: {} bytes", estimated_table_size);
+            tracing::debug!(
                 "  Allocated: {} bytes ({:.2} MB)",
                 windowed_allocated,
                 windowed_allocated as f64 / 1_048_576.0
             );
-            println!(
+            tracing::debug!(
                 "  Used: {} bytes ({:.2} MB)",
                 windowed_used,
                 windowed_used as f64 / 1_048_576.0
@@ -646,17 +709,17 @@ impl G1Cache {
 
             windowed_memory += windowed_allocated;
         } else {
-            println!("\nNo windowed precomputed data");
+            tracing::debug!("No windowed precomputed data");
         }
 
         // Total memory
         let total_allocated = entries_allocated + windowed_memory + mem::size_of::<Self>();
-        println!(
-            "\n>>> G1 Cache Total Allocated: {} bytes ({:.2} MB)",
+        tracing::debug!(
+            ">>> G1 Cache Total Allocated: {} bytes ({:.2} MB)",
             total_allocated,
             total_allocated as f64 / 1_048_576.0
         );
-        println!("=====================================\n");
+        tracing::debug!("=====================================");
     }
 }
 
@@ -665,9 +728,7 @@ impl G1Cache {
 pub struct G2CacheEntry {
     /// Original affine point
     pub affine: G2Affine,
-    /// Projective version for faster group operations
-    pub projective: G2Projective,
-    /// Prepared version for pairing operations
+    /// line evaluations for multi pairing
     pub prepared: BnG2Prepared<ark_bn254::Config>,
 }
 
@@ -684,38 +745,25 @@ pub struct G2Cache {
 
 impl G2Cache {
     /// Initialize cache from a vector of G2 affine points
-    pub fn new(generators: &[G2Affine], g_fin: Option<&G2Affine>) -> Self {
-        // First convert all generators to projective form
-        let generators_proj: Vec<G2Projective> =
-            generators.iter().map(|g| g.into_group()).collect();
-
-        // Create precomputed windowed2 signed data for all generators
-        let precomputed_data = precompute_g2_generators_windowed2_signed(&generators_proj);
-
+    /// At the moment the cache is more or less just the prepared values for the multi pairing
+    /// @TODO(markosg04) simplify the cache
+    pub fn new(generators: &[G2Affine], _g_fin: Option<&G2Affine>) -> Self {
         let entries: Vec<G2CacheEntry> = generators
             .par_iter()
             .map(|&g| {
-                let projective = g.into_group();
                 let prepared = BnG2Prepared::from(g);
 
                 G2CacheEntry {
                     affine: g,
-                    projective,
                     prepared,
                 }
             })
             .collect();
 
-        // Precompute GLV tables for g_fin if provided
-        let g_fin_glv_tables = g_fin.map(|g_fin_point| {
-            let g_fin_proj = g_fin_point.into_group();
-            jolt_optimizations::glv_four_precompute(&[g_fin_proj])
-        });
-
         Self {
             entries,
-            precomputed_data: Some(precomputed_data),
-            g_fin_glv_tables,
+            precomputed_data: None,
+            g_fin_glv_tables: None,
         }
     }
 
@@ -810,16 +858,10 @@ impl G2Cache {
         self.entries.get(index)
     }
 
-    /// Get the projective version of a point by index
-    pub fn get_projective(&self, index: usize) -> Option<&G2Projective> {
-        self.entries.get(index).map(|e| &e.projective)
-    }
-
     /// Get the prepared version of a point by index
     pub fn get_prepared(&self, index: usize) -> Option<&BnG2Prepared<ark_bn254::Config>> {
         self.entries.get(index).map(|e| &e.prepared)
     }
-
 
     /// Number of cached entries
     pub fn len(&self) -> usize {
@@ -847,8 +889,8 @@ impl G2Cache {
     pub fn print_memory_stats(&self) {
         use std::mem;
 
-        println!("=== G2 Cache Memory Usage ===");
-        println!("Number of entries: {}", self.entries.len());
+        tracing::debug!("=== G2 Cache Memory Usage ===");
+        tracing::debug!("Number of entries: {}", self.entries.len());
 
         // Calculate entries vector memory
         let entries_capacity = self.entries.capacity();
@@ -856,26 +898,26 @@ impl G2Cache {
         let entries_allocated = entries_capacity * entry_size;
         let entries_used = self.entries.len() * entry_size;
 
-        println!("\nEntries Vector:");
-        println!("  Entry struct size: {} bytes", entry_size);
-        println!("  Capacity: {} entries", entries_capacity);
-        println!("  Used: {} entries", self.entries.len());
-        println!(
+        tracing::debug!("Entries Vector:");
+        tracing::debug!("  Entry struct size: {} bytes", entry_size);
+        tracing::debug!("  Capacity: {} entries", entries_capacity);
+        tracing::debug!("  Used: {} entries", self.entries.len());
+        tracing::debug!(
             "  Allocated memory: {} bytes ({:.2} MB)",
             entries_allocated,
             entries_allocated as f64 / 1_048_576.0
         );
-        println!(
+        tracing::debug!(
             "  Used memory: {} bytes ({:.2} MB)",
             entries_used,
             entries_used as f64 / 1_048_576.0
         );
 
         // Get actual sizes of types
-        println!("\nType sizes:");
-        println!("  G2Affine: {} bytes", mem::size_of::<G2Affine>());
-        println!("  G2Projective: {} bytes", mem::size_of::<G2Projective>());
-        println!(
+        tracing::debug!("Type sizes:");
+        tracing::debug!("  G2Affine: {} bytes", mem::size_of::<G2Affine>());
+        tracing::debug!("  G2Projective: {} bytes", mem::size_of::<G2Projective>());
+        tracing::debug!(
             "  BnG2Prepared: {} bytes",
             mem::size_of::<BnG2Prepared<ark_bn254::Config>>()
         );
@@ -895,16 +937,16 @@ impl G2Cache {
             let windowed_allocated = tables_capacity * estimated_table_size;
             let windowed_used = tables_len * estimated_table_size;
 
-            println!("\nWindowed2Signed4Data:");
-            println!("  Tables count: {}", tables_len);
-            println!("  Tables capacity: {}", tables_capacity);
-            println!("  Estimated per table: {} bytes", estimated_table_size);
-            println!(
+            tracing::debug!("Windowed2Signed4Data:");
+            tracing::debug!("  Tables count: {}", tables_len);
+            tracing::debug!("  Tables capacity: {}", tables_capacity);
+            tracing::debug!("  Estimated per table: {} bytes", estimated_table_size);
+            tracing::debug!(
                 "  Allocated: {} bytes ({:.2} MB)",
                 windowed_allocated,
                 windowed_allocated as f64 / 1_048_576.0
             );
-            println!(
+            tracing::debug!(
                 "  Used: {} bytes ({:.2} MB)",
                 windowed_used,
                 windowed_used as f64 / 1_048_576.0
@@ -912,7 +954,7 @@ impl G2Cache {
 
             windowed_memory += windowed_allocated;
         } else {
-            println!("\nNo windowed precomputed data");
+            tracing::debug!("No windowed precomputed data");
         }
 
         // Calculate g_fin GLV tables memory
@@ -929,16 +971,16 @@ impl G2Cache {
             let glv_allocated = glv_tables_capacity * shamir_table_size;
             let glv_used = glv_tables_len * shamir_table_size;
 
-            println!("\nG_fin GLV Tables (PrecomputedShamir4Data):");
-            println!("  Tables count: {}", glv_tables_len);
-            println!("  Tables capacity: {}", glv_tables_capacity);
-            println!("  Per table: {} bytes (15 G2Projective)", shamir_table_size);
-            println!(
+            tracing::debug!("G_fin GLV Tables (PrecomputedShamir4Data):");
+            tracing::debug!("  Tables count: {}", glv_tables_len);
+            tracing::debug!("  Tables capacity: {}", glv_tables_capacity);
+            tracing::debug!("  Per table: {} bytes (15 G2Projective)", shamir_table_size);
+            tracing::debug!(
                 "  Allocated: {} bytes ({:.2} MB)",
                 glv_allocated,
                 glv_allocated as f64 / 1_048_576.0
             );
-            println!(
+            tracing::debug!(
                 "  Used: {} bytes ({:.2} MB)",
                 glv_used,
                 glv_used as f64 / 1_048_576.0
@@ -946,18 +988,18 @@ impl G2Cache {
 
             glv_memory += glv_allocated;
         } else {
-            println!("\nNo g_fin GLV tables");
+            tracing::debug!("No g_fin GLV tables");
         }
 
         // Total memory
         let total_allocated =
             entries_allocated + windowed_memory + glv_memory + mem::size_of::<Self>();
-        println!(
-            "\n>>> G2 Cache Total Allocated: {} bytes ({:.2} MB)",
+        tracing::debug!(
+            ">>> G2 Cache Total Allocated: {} bytes ({:.2} MB)",
             total_allocated,
             total_allocated as f64 / 1_048_576.0
         );
-        println!("=====================================\n");
+        tracing::debug!("=====================================");
     }
 }
 
@@ -1131,7 +1173,7 @@ impl MultiScalarMul<G2AffineWrapper> for OptimizedMsmG2 {
 
         // Check if we have cached GLV tables for g_fin
         if let Some(glv_tables) = g2_cache.and_then(|cache| cache.get_g_fin_glv_tables()) {
-            // println!("USING PRECOMPUTED GLV TABLES FOR G_FIN!");
+            tracing::debug!("Using precomputed GLV tables for g_fin");
             // Use precomputed GLV tables
             let results_proj: Vec<G2Projective> = scalars
                 .par_iter()
@@ -1342,18 +1384,17 @@ impl<G: Group> MultiScalarMul<G> for DummyMsm<G> {
 
 /// Standard polynomial with field elements for testing
 #[derive(Clone, Debug, PartialEq)]
-pub struct StandardPolynomial<'a, F: Field> {
-    pub coeffs: &'a [F],
+pub struct StandardPolynomial<F: Field> {
+    pub coeffs: Vec<F>,
 }
 
-impl<'a, F: Field> StandardPolynomial<'a, F> {
-    pub fn new(coeffs: &'a [F]) -> Self {
-        Self { coeffs }
+impl<F: Field> StandardPolynomial<F> {
+    pub fn new(coeffs: &[F]) -> Self {
+        Self {
+            coeffs: coeffs.to_vec(),
+        }
     }
-}
 
-// Implement Polynomial trait for StandardPolynomial
-impl<'a, F: Field, G1: Group<Scalar = F>> Polynomial<F, G1> for StandardPolynomial<'a, F> {
     fn get(&self, index: usize) -> F {
         if index < self.coeffs.len() {
             self.coeffs[index]
@@ -1362,7 +1403,156 @@ impl<'a, F: Field, G1: Group<Scalar = F>> Polynomial<F, G1> for StandardPolynomi
         }
     }
 
+    /// Evaluates the polynomial at a given point
+    pub fn evaluate(&self, point: &[F]) -> F {
+        let len = self.coeffs.len();
+        let mut eval_vec: Vec<F> = vec![F::zero(); len];
+
+        let expected_size = 1 << point.len();
+        assert!(
+            len <= expected_size,
+            "Too many coefficients: got {}, max for {} variables is {}",
+            len,
+            point.len(),
+            expected_size
+        );
+
+        multilinear_lagrange_vec(&mut eval_vec, point);
+
+        // Compute inner product <coeffs, eval_vec>
+        let mut result = F::zero();
+        for (i, eval) in eval_vec.iter().enumerate() {
+            let coeff = self.get(i);
+            result = result.add(&coeff.mul(eval));
+        }
+        result
+    }
+}
+
+// Implement Polynomial trait for StandardPolynomial
+impl<F: Field, G1: Group<Scalar = F>> Polynomial<F, G1> for StandardPolynomial<F> {
     fn len(&self) -> usize {
         self.coeffs.len()
     }
+
+    /// Commits to rows of the polynomial when viewed as a matrix
+    fn commit_rows<M1: MultiScalarMul<G1>>(&self, g1_generators: &[G1], row_len: usize) -> Vec<G1> {
+        let mut commitments = Vec::new();
+        let len = self.coeffs.len();
+
+        let num_rows = (len + row_len - 1) / row_len;
+        for row in 0..num_rows {
+            let row_start = row * row_len;
+            let row_end = (row_start + row_len).min(len);
+            let actual_row_len = row_end - row_start;
+
+            if actual_row_len > 0 {
+                let mut row_coeffs = vec![F::zero(); actual_row_len];
+                for i in 0..actual_row_len {
+                    row_coeffs[i] = self.get(row_start + i);
+                }
+                let commitment = M1::msm(&g1_generators[..actual_row_len], &row_coeffs);
+                commitments.push(commitment);
+            }
+        }
+
+        commitments
+    }
+
+    /// Computes the vector-matrix product v = L^T * M where M is the polynomial as a matrix
+    ///
+    /// # Arguments
+    /// * `left_vec` - The L vector (row evaluation weights)
+    /// * `sigma` - log₂(columns) - matrix width
+    /// * `nu` - log₂(rows) - matrix height
+    ///
+    /// # Returns
+    /// Result vector v where v[j] = sum_i L[i] * M[i,j]
+    #[tracing::instrument(skip_all)]
+    fn vector_matrix_product(&self, left_vec: &[F], sigma: usize, nu: usize) -> Vec<F>
+    where
+        Self: Sync,
+    {
+        use rayon::prelude::*;
+
+        let cols_per_row = 1 << sigma;
+        let len = self.coeffs.len();
+        let num_rows = (1 << nu).min(left_vec.len());
+
+        if num_rows == 0 {
+            return vec![F::zero(); cols_per_row];
+        }
+
+        let effective_rows: Vec<(usize, &F)> = (0..num_rows)
+            .filter_map(|row_idx| {
+                let weight = &left_vec[row_idx];
+                if !weight.is_zero() {
+                    Some((row_idx, weight))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if effective_rows.is_empty() {
+            return vec![F::zero(); cols_per_row];
+        }
+
+        (0..cols_per_row)
+            .into_par_iter()
+            .map(|col_idx| {
+                let mut col_sum = F::zero();
+
+                // Process all contributing rows for this column
+                for &(row_idx, l_weight) in &effective_rows {
+                    let coeff_idx = row_idx * cols_per_row + col_idx;
+                    if coeff_idx < len {
+                        let coeff = self.get(coeff_idx);
+                        let product = l_weight.mul(&coeff);
+                        col_sum = col_sum.add(&product);
+                    }
+                }
+
+                col_sum
+            })
+            .collect()
+    }
+}
+
+/// Create commitment batch, batching factors, and evaluations for verification
+/// This provides the values needed for verify_evaluation_proof
+pub fn commit_and_evaluate_batch<
+    E: Pairing<G1 = G1>,
+    M1: MultiScalarMul<G1>,
+    F: Field,
+    G1: Group<Scalar = F>,
+>(
+    poly: &StandardPolynomial<F>,
+    point: &[F],
+    offset: usize,
+    sigma: usize,
+    prover_setup: &ProverSetup<E>,
+) -> (
+    Vec<E::GT>, // commitment_batch
+    Vec<F>,     // batching_factors
+    Vec<F>,     // evaluations
+)
+where
+    F: Field + Clone,
+{
+    // Compute the commitment to the polynomial
+    let (commitment, _) =
+        compute_polynomial_commitment::<E, M1, _, F, G1>(poly, offset, sigma, prover_setup);
+
+    // Compute the evaluation of the polynomial at the point
+    let evaluation = poly.evaluate(point);
+
+    // For a single polynomial, we use a single batching factor of 1
+    let commitment_batch = vec![commitment];
+
+    // @TODO(markosg04): support batching
+    let batching_factors = vec![F::one()];
+    let evaluations = vec![evaluation]; // for now just one evaluation
+
+    (commitment_batch, batching_factors, evaluations)
 }
