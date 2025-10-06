@@ -1,5 +1,6 @@
 //! GT offloading abstraction for recursive JOLT
 use crate::arithmetic::{Group, Pairing};
+#[allow(unused_imports)]
 use crate::recursion_prelude::GTOffloadResult;
 
 #[cfg(feature = "recursion")]
