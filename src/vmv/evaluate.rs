@@ -80,10 +80,14 @@ where
 
     // D₁ = e(⟨T_vec_prime, Γ₂[nu]⟩)
     // This is what the verifier will have as initial d_1
+    // Only compute when recursion is enabled since it's only used for finalize_for_recursion
+    #[cfg(feature = "recursion")]
     let d1 = E::multi_pair(
         &prover_state.v1, // T_vec_prime
         &prover_setup.g2_vec()[..1 << prover_state.nu],
     );
+    #[cfg(not(feature = "recursion"))]
+    let d1 = E::GT::identity(); // Dummy value, never used
 
     // E₁ = ⟨T~₀, ~L⟩
     // Protocol: E₁ = ⟨~L, C₀⟩ + rE₁·H₁ (randomness omitted)

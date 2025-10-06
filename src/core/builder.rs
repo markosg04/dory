@@ -15,7 +15,10 @@ use crate::{
     toy_transcript::ToyTranscript,
 };
 
-use crate::recursion_prelude::{ExponentiationSteps, GTOffloadResult};
+#[cfg(feature = "recursion")]
+use crate::recursion_prelude::ExponentiationSteps;
+#[cfg(feature = "recursion")]
+use crate::recursion_prelude::GTOffloadResult;
 
 /// A serializable proof struct that contains all the messages exchanged
 #[derive(Clone, Debug, Default, CanonicalSerialize, CanonicalDeserialize)]
@@ -34,16 +37,8 @@ where
     /// Vector-matrix-vector message (for PCS)
     pub vmv_message: Option<VMVMessage<G1, GT>>,
     /// GT offload results for recursion (lightweight, only contains Fq12 results)
+    #[cfg(feature = "recursion")]
     pub gt_offload_results: Option<Vec<GTOffloadResult>>,
-}
-
-impl<G1, G2, GT> DoryProof<G1, G2, GT>
-where
-    G1: Group,
-    G2: Group,
-    GT: Group,
-{
-    // minimize_exponentiation_steps removed - no longer needed with GTOffloadResult
 }
 
 /// Trait that defines the structure of the Dory proof.
@@ -144,34 +139,49 @@ where
     /// vector-matrix-vector message, used to transform general dory into PCS
     pub vmv_message: Option<VMVMessage<G1, GT>>,
     /// GT exponentiation steps for recursion (full witness data)
+    #[cfg(feature = "recursion")]
     pub gt_exponentiation_steps: Option<Vec<ExponentiationSteps>>,
     /// GT offload results for recursion (lightweight proof data)
+    #[cfg(feature = "recursion")]
     pub gt_offload_results: Option<Vec<GTOffloadResult>>,
     /// Delta values from setup for round 1 left (recursion feature)
+    #[cfg(feature = "recursion")]
     pub setup_delta_1l: Option<Vec<GT>>,
     /// Delta values from setup for round 1 right (recursion feature)
+    #[cfg(feature = "recursion")]
     pub setup_delta_1r: Option<Vec<GT>>,
     /// Delta values from setup for round 2 left (recursion feature)
+    #[cfg(feature = "recursion")]
     pub setup_delta_2l: Option<Vec<GT>>,
     /// Delta values from setup for round 2 right (recursion feature)
+    #[cfg(feature = "recursion")]
     pub setup_delta_2r: Option<Vec<GT>>,
     /// Fold scalars challenge for final phase
+    #[cfg(feature = "recursion")]
     pub fold_scalars_challenge: Option<FoldScalarsChallenge<Scalar>>,
     /// Scalar product challenge for final verification
+    #[cfg(feature = "recursion")]
     pub scalar_product_challenge: Option<ScalarProductChallenge<Scalar>>,
     /// Setup HT value for pairing computation
+    #[cfg(feature = "recursion")]
     pub setup_ht: Option<GT>,
     /// Setup H1 generator
+    #[cfg(feature = "recursion")]
     pub setup_h1: Option<G1>,
     /// Setup H2 generator
+    #[cfg(feature = "recursion")]
     pub setup_h2: Option<G2>,
     /// Setup G1 generator at position 0
+    #[cfg(feature = "recursion")]
     pub setup_g1_0: Option<G1>,
     /// Setup G2 generator at position 0
+    #[cfg(feature = "recursion")]
     pub setup_g2_0: Option<G2>,
     /// Final s1 scalar value
+    #[cfg(feature = "recursion")]
     pub s1_final: Option<Scalar>,
     /// Final s2 scalar value
+    #[cfg(feature = "recursion")]
     pub s2_final: Option<Scalar>,
     /// Fiat shamir
     pub transcript: T,
@@ -231,21 +241,6 @@ where
             second_messages: Vec::new(),
             final_message: None,
             vmv_message: None,
-            gt_exponentiation_steps: None,
-            gt_offload_results: None,
-            setup_delta_1l: None,
-            setup_delta_1r: None,
-            setup_delta_2l: None,
-            setup_delta_2r: None,
-            fold_scalars_challenge: None,
-            scalar_product_challenge: None,
-            setup_ht: None,
-            setup_h1: None,
-            setup_h2: None,
-            setup_g1_0: None,
-            setup_g2_0: None,
-            s1_final: None,
-            s2_final: None,
             transcript,
             _phantom: PhantomData,
         }
@@ -306,21 +301,6 @@ where
             second_messages: Vec::new(),
             final_message: None,
             vmv_message: None,
-            gt_exponentiation_steps: None,
-            gt_offload_results: None,
-            setup_delta_1l: None,
-            setup_delta_1r: None,
-            setup_delta_2l: None,
-            setup_delta_2r: None,
-            fold_scalars_challenge: None,
-            scalar_product_challenge: None,
-            setup_ht: None,
-            setup_h1: None,
-            setup_h2: None,
-            setup_g1_0: None,
-            setup_g2_0: None,
-            s1_final: None,
-            s2_final: None,
             transcript,
             _phantom: PhantomData,
         }
@@ -333,6 +313,7 @@ where
             second_messages: self.second_messages.clone(),
             final_message: self.final_message.clone(),
             vmv_message: self.vmv_message.clone(),
+            #[cfg(feature = "recursion")]
             gt_offload_results: self.gt_offload_results.clone(),
         }
     }
@@ -363,20 +344,35 @@ where
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
+            #[cfg(feature = "recursion")]
             gt_exponentiation_steps: None, // Full steps not in proof
+            #[cfg(feature = "recursion")]
             gt_offload_results: proof.gt_offload_results,
+            #[cfg(feature = "recursion")]
             setup_delta_1l: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             setup_delta_1r: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             setup_delta_2l: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             setup_delta_2r: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             fold_scalars_challenge: None,
+            #[cfg(feature = "recursion")]
             scalar_product_challenge: None,
+            #[cfg(feature = "recursion")]
             setup_ht: None,
+            #[cfg(feature = "recursion")]
             setup_h1: None,
+            #[cfg(feature = "recursion")]
             setup_h2: None,
+            #[cfg(feature = "recursion")]
             setup_g1_0: None,
+            #[cfg(feature = "recursion")]
             setup_g2_0: None,
+            #[cfg(feature = "recursion")]
             s1_final: None,
+            #[cfg(feature = "recursion")]
             s2_final: None,
             transcript,
             _phantom: PhantomData,
@@ -397,20 +393,35 @@ where
             second_messages: proof.second_messages,
             final_message: proof.final_message,
             vmv_message: proof.vmv_message,
+            #[cfg(feature = "recursion")]
             gt_exponentiation_steps: None, // Full steps not in proof
+            #[cfg(feature = "recursion")]
             gt_offload_results: proof.gt_offload_results,
+            #[cfg(feature = "recursion")]
             setup_delta_1l: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             setup_delta_1r: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             setup_delta_2l: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             setup_delta_2r: Some(Vec::new()),
+            #[cfg(feature = "recursion")]
             fold_scalars_challenge: None,
+            #[cfg(feature = "recursion")]
             scalar_product_challenge: None,
+            #[cfg(feature = "recursion")]
             setup_ht: None,
+            #[cfg(feature = "recursion")]
             setup_h1: None,
+            #[cfg(feature = "recursion")]
             setup_h2: None,
+            #[cfg(feature = "recursion")]
             setup_g1_0: None,
+            #[cfg(feature = "recursion")]
             setup_g2_0: None,
+            #[cfg(feature = "recursion")]
             s1_final: None,
+            #[cfg(feature = "recursion")]
             s2_final: None,
             transcript: T::default(),
             _phantom: PhantomData,
@@ -482,13 +493,16 @@ where
     fn append_scalar_product_message(
         mut self,
         message: ScalarProductMessage<Self::G1, Self::G2>,
-        s1_final: Option<Self::Scalar>,
-        s2_final: Option<Self::Scalar>,
+        #[allow(unused_variables)] s1_final: Option<Self::Scalar>,
+        #[allow(unused_variables)] s2_final: Option<Self::Scalar>,
     ) -> Self {
         self.transcript.append_group(b"e1", &message.e1);
         self.transcript.append_group(b"e2", &message.e2);
-        self.s1_final = s1_final;
-        self.s2_final = s2_final;
+        #[cfg(feature = "recursion")]
+        {
+            self.s1_final = s1_final;
+            self.s2_final = s2_final;
+        }
         self.final_message = Some(message);
         self
     }

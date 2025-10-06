@@ -58,9 +58,6 @@ fn test_soundness_tamper_d1_left() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -102,9 +99,6 @@ fn test_soundness_tamper_d1_right() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -152,9 +146,6 @@ fn test_soundness_tamper_d2_left() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -196,9 +187,6 @@ fn test_soundness_tamper_d2_right() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -246,9 +234,6 @@ fn test_soundness_tamper_e1_beta() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -290,9 +275,6 @@ fn test_soundness_tamper_e2_beta() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -340,9 +322,6 @@ fn test_soundness_tamper_c_plus() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -384,9 +363,6 @@ fn test_soundness_tamper_c_minus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -434,9 +410,6 @@ fn test_soundness_tamper_e1_plus() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -478,9 +451,6 @@ fn test_soundness_tamper_e1_minus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -528,9 +498,6 @@ fn test_soundness_tamper_e2_plus() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -572,9 +539,6 @@ fn test_soundness_tamper_e2_minus() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -622,9 +586,6 @@ fn test_soundness_tamper_final_e1() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -669,9 +630,6 @@ fn test_soundness_tamper_final_e2() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -712,9 +670,6 @@ fn test_soundness_swap_d1_values() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -763,9 +718,6 @@ fn test_soundness_swap_c_values() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -809,9 +761,6 @@ fn test_soundness_scale_d1_values() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
@@ -863,9 +812,6 @@ fn test_soundness_multi_round_tampering() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -913,9 +859,6 @@ fn test_soundness_tamper_last_round() {
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain);
     let mut proof_builder =
         inner_product_prove::<_, _, _, _, _, _, _, OptimizedMsmG1, OptimizedMsmG2>(
@@ -958,9 +901,6 @@ fn test_soundness_maintain_sum_attack() {
         setup_test_environment(log_n);
 
     // Generate proof
-    #[cfg(feature = "recursion")]
-    let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
-    #[cfg(not(feature = "recursion"))]
     #[cfg(feature = "recursion")]
     let builder = DoryProofBuilder::<G1Affine, G2AffineWrapper, Fq12, Fr, ToyTranscript>::new_with_toy_transcript(domain, &prover_setup);
     #[cfg(not(feature = "recursion"))]
