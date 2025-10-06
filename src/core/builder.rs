@@ -599,8 +599,8 @@ pub trait VerificationBuilder {
     /// Derive d, d^-1 after all rounds are ingested.
     fn challenge_scalar_product_scalars(&mut self) -> ScalarProductChallenge<Self::Scalar>;
 
-    /// Provide the final scalar-product message that the prover sent.
-    fn process_scalar_product_message(&self) -> &ScalarProductMessage<Self::G1, Self::G2>;
+    /// Provide the final scalar-product message that the prover sent and append it to the transcript.
+    fn process_scalar_product_message(&mut self) -> &ScalarProductMessage<Self::G1, Self::G2>;
 
     /// Process a [`VMVMessage`].
     fn process_vmv_message(&mut self) -> VMVMessage<Self::G1, Self::GT>;
@@ -770,7 +770,9 @@ where
         }
     }
 
-    fn process_scalar_product_message(&self) -> &ScalarProductMessage<G1, G2> {
+    fn process_scalar_product_message(&mut self) -> &ScalarProductMessage<G1, G2> {
+        self.transcript.append_group(b"e1", &self.scalar_msg.e1);
+        self.transcript.append_group(b"e2", &self.scalar_msg.e2);
         &self.scalar_msg
     }
 
