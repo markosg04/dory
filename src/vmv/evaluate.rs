@@ -40,7 +40,7 @@ fn eval_vmv_re_prove<
 ) -> (
     DoryProofBuilder<E::G1, E::G2, E::GT, <E::G1 as Group>::Scalar, T>,
     DoryProverState<E>,
-    E::GT, // Return d1 for use in finalize_for_recursion
+    Option<E::GT>, // Return d1 for use in finalize_for_recursion (only when recursion enabled)
 )
 where
     E::G1: Group,
@@ -82,12 +82,12 @@ where
     // This is what the verifier will have as initial d_1
     // Only compute when recursion is enabled since it's only used for finalize_for_recursion
     #[cfg(feature = "recursion")]
-    let d1 = E::multi_pair(
+    let d1 = Some(E::multi_pair(
         &prover_state.v1, // T_vec_prime
         &prover_setup.g2_vec()[..1 << prover_state.nu],
-    );
+    ));
     #[cfg(not(feature = "recursion"))]
-    let d1 = E::GT::identity(); // Dummy value, never used
+    let d1 = None;
 
     // E₁ = ⟨T~₀, ~L⟩
     // Protocol: E₁ = ⟨~L, C₀⟩ + rE₁·H₁ (randomness omitted)
@@ -161,11 +161,7 @@ where
     let proof_builder = DoryProofBuilder::new(initial_transcript);
 
     // 6. Initial commitments
-    #[cfg(feature = "recursion")]
-    let (final_proof_builder, proof_state, initial_d1) =
-        eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec.clone(), prover_setup);
-    #[cfg(not(feature = "recursion"))]
-    let (final_proof_builder, proof_state, _) =
+    let (final_proof_builder, proof_state, _initial_d1) =
         eval_vmv_re_prove::<E, T, M1, M2>(proof_builder, prover_state, v_vec.clone(), prover_setup);
 
     // Prepare values for recursion before they're moved
@@ -201,7 +197,7 @@ where
     // Finalize for recursion if feature is enabled
     #[cfg(feature = "recursion")]
     let builder =
-        builder.finalize_for_recursion(prover_setup, nu, Some(initial_d1), initial_e1, initial_e2);
+        builder.finalize_for_recursion(prover_setup, nu, _initial_d1, initial_e1, initial_e2);
     #[cfg(not(feature = "recursion"))]
     let builder = builder;
 
