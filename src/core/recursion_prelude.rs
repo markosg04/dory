@@ -10,8 +10,8 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 /// Used for recursion poly tracking
 pub struct ExponentiationSteps;
 
-/// Lightweight GT offload result containing only the precomputed Fq12 value.
 /// Used in proofs to store GT exponentiation results without the full witness data.
+/// In the future may contain other types as well
 #[cfg(feature = "recursion")]
 #[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct GTOffloadResult {
