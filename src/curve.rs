@@ -2,7 +2,7 @@
 use crate::poly::Polynomial;
 use crate::{arithmetic::*, compute_polynomial_commitment, multilinear_lagrange_vec, ProverSetup};
 use ark_bn254::Fq;
-use ark_bn254::{Bn254, Fq12, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Config, Fq12, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{
     bn::{G1Prepared as BnG1Prepared, G2Prepared as BnG2Prepared},
     pairing::{MillerLoopOutput, Pairing as ArkPairing},
@@ -352,6 +352,93 @@ impl Pairing for ArkBn254Pairing {
         Self::multi_pair_cached(Some(ps), None, None, Some(qs), None, None)
     }
 
+    fn prepare_g1(
+        points: Option<&[Self::G1]>,
+        count: Option<usize>,
+        cache: Option<&G1Cache>,
+    ) -> Vec<BnG1Prepared<ark_bn254::Config>> {
+        let prepared = match (points, count, cache) {
+            // Cached
+            (None, Some(count), Some(cache)) => {
+                let _span = tracing::span!(tracing::Level::INFO, "prepare_g1_cached").entered();
+                (0..count)
+                    .into_par_iter()
+                    .map(|i| {
+                        cache
+                            .get_prepared(i)
+                            .expect("Index out of bounds in G1 cache")
+                            .clone()
+                    })
+                    .collect()
+            }
+            // Fresh points
+            (Some(points), None, None) => {
+                let _span = tracing::span!(tracing::Level::INFO, "prepare_g1_fresh").entered();
+                points
+                    .par_iter()
+                    .map(|&g| BnG1Prepared::from(g))
+                    .collect::<Vec<_>>()
+            }
+            _ => vec![],
+        };
+
+        prepared
+    }
+
+    fn prepare_g2(
+        points: Option<&[Self::G2]>,
+        count: Option<usize>,
+        cache: Option<&G2Cache>,
+    ) -> Vec<BnG2Prepared<ark_bn254::Config>> {
+        let prepared = match (points, count, cache) {
+            // Cached
+            (None, Some(count), Some(cache)) => {
+                let _span = tracing::span!(tracing::Level::INFO, "prepare_g2_cached").entered();
+                (0..count)
+                    .into_par_iter()
+                    .map(|i| {
+                        cache
+                            .get_prepared(i)
+                            .expect("Index out of bounds in G2 cache")
+                            .clone()
+                    })
+                    .collect()
+            }
+            // Fresh points
+            (Some(points), None, None) => {
+                let _span = tracing::span!(tracing::Level::INFO, "prepare_g2_fresh").entered();
+                points
+                    .par_iter()
+                    .map(|q| BnG2Prepared::from(q.0))
+                    .collect::<Vec<_>>()
+            }
+            _ => vec![],
+        };
+
+        prepared
+    }
+
+    fn multi_pair_prepared(
+        g1_prepared: &[BnG1Prepared<Config>],
+        g2_prepared: &[BnG2Prepared<Config>],
+    ) -> Self::GT {
+        if g1_prepared.is_empty() && g2_prepared.is_empty() {
+            return Self::GT::identity();
+        }
+
+        assert_eq!(
+            g1_prepared.len(),
+            g2_prepared.len(),
+            "G1 and G2 vectors must have equal length"
+        );
+
+        let ml_result = Bn254::multi_miller_loop_ref(g1_prepared.iter(), g2_prepared.iter()).0;
+        let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
+            .expect("Final exponentiation should not fail");
+
+        pairing_result.0
+    }
+
     fn multi_pair_cached(
         g1_points: Option<&[Self::G1]>,
         g1_count: Option<usize>,
@@ -360,128 +447,9 @@ impl Pairing for ArkBn254Pairing {
         g2_count: Option<usize>,
         g2_cache: Option<&G2Cache>,
     ) -> Self::GT {
-        match (g1_points, g1_count, g1_cache, g2_points, g2_count, g2_cache) {
-            // Case 1: Both G1 and G2 use cached prepared values (fully optimized)
-            (None, Some(g1_c), Some(g1_cache), None, Some(g2_c), Some(g2_cache)) => {
-                assert_eq!(g1_c, g2_c, "G1 and G2 counts must be equal");
-                if g1_c == 0 {
-                    return Fq12::one();
-                }
-
-                // Extract prepared values as iterators - avoids Vec allocation and cloning
-                let g1_prepared = (0..g1_c).map(|i| {
-                    g1_cache
-                        .get_prepared(i)
-                        .expect("Index out of bounds in G1 cache")
-                });
-
-                let g2_prepared = (0..g2_c).map(|i| {
-                    g2_cache
-                        .get_prepared(i)
-                        .expect("Index out of bounds in G2 cache")
-                });
-
-                let ml_result = Bn254::multi_miller_loop(g1_prepared, g2_prepared).0;
-
-                let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
-                    .expect("Final exponentiation should not fail");
-
-                pairing_result.0
-            }
-
-            // Case 2: G1 cached, G2 fresh points (partial optimization)
-            (None, Some(g1_c), Some(g1_cache), Some(g2_points), _, _) => {
-                assert_eq!(
-                    g1_c,
-                    g2_points.len(),
-                    "G1 count must equal G2 points length"
-                );
-                if g1_c == 0 {
-                    return Fq12::one();
-                }
-
-                // G1 from cache as iterator, G2 fresh preparation
-                let g1_prepared = (0..g1_c).map(|i| {
-                    g1_cache
-                        .get_prepared(i)
-                        .expect("Index out of bounds in G1 cache")
-                });
-
-                let g2_prepared = g2_points
-                    .par_iter()
-                    .map(|q| BnG2Prepared::from(q.0))
-                    .collect::<Vec<_>>();
-
-                let ml_result = Bn254::multi_miller_loop(g1_prepared, &g2_prepared).0;
-
-                let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
-                    .expect("Final exponentiation should not fail");
-
-                pairing_result.0
-            }
-
-            // Case 3: G1 fresh points, G2 cached (partial optimization)
-            (Some(g1_points), _, _, None, Some(g2_c), Some(g2_cache)) => {
-                assert_eq!(
-                    g1_points.len(),
-                    g2_c,
-                    "G1 points length must equal G2 count"
-                );
-                if g2_c == 0 {
-                    return Fq12::one();
-                }
-
-                // G1 fresh preparation, G2 from cache as iterator
-                let g1_prepared = g1_points
-                    .par_iter()
-                    .map(|&g| BnG1Prepared::from(g))
-                    .collect::<Vec<_>>();
-
-                let g2_prepared = (0..g2_c).map(|i| {
-                    g2_cache
-                        .get_prepared(i)
-                        .expect("Index out of bounds in G2 cache")
-                });
-
-                let ml_result = Bn254::multi_miller_loop(&g1_prepared, g2_prepared).0;
-
-                let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
-                    .expect("Final exponentiation should not fail");
-
-                pairing_result.0
-            }
-
-            // Case 4: Both fresh points (no caching benefit)
-            (Some(g1_points), _, _, Some(g2_points), _, _) => {
-                assert_eq!(
-                    g1_points.len(),
-                    g2_points.len(),
-                    "G1 and G2 vectors must have equal length"
-                );
-                if g1_points.is_empty() {
-                    return Fq12::one();
-                }
-
-                let left = g1_points
-                    .par_iter()
-                    .map(|&g| BnG1Prepared::from(g))
-                    .collect::<Vec<_>>();
-
-                let right = g2_points
-                    .par_iter()
-                    .map(|q| BnG2Prepared::from(q.0))
-                    .collect::<Vec<_>>();
-
-                let ml_result = Bn254::multi_miller_loop(&left, &right).0;
-
-                let pairing_result = Bn254::final_exponentiation(MillerLoopOutput(ml_result))
-                    .expect("Final exponentiation should not fail");
-
-                pairing_result.0
-            }
-
-            _ => panic!("Invalid combination of parameters provided to multi_pair_cached"),
-        }
+        let g1_prepared = Self::prepare_g1(g1_points, g1_count, g1_cache);
+        let g2_prepared = Self::prepare_g2(g2_points, g2_count, g2_cache);
+        Self::multi_pair_prepared(&g1_prepared, &g2_prepared)
     }
 }
 
@@ -1457,6 +1425,30 @@ impl<F: Field, G1: Group<Scalar = F>> Polynomial<F, G1> for StandardPolynomial<F
         }
 
         commitments
+    }
+
+    fn commit_with_batch<M1: MultiScalarMul<G1>, U>(
+        &self,
+        batch: &[U],
+        g1_generators: &[G1],
+        row_len: usize,
+    ) -> Vec<Vec<G1>>
+    where
+        U: std::borrow::Borrow<Self> + Sync,
+    {
+        let mut all_commitments = Vec::new();
+
+        // Commit to the current polynomial first
+        let self_commitments = self.commit_rows::<M1>(g1_generators, row_len);
+        all_commitments.push(self_commitments);
+
+        // Commit to each polynomial in the batch
+        for poly in batch {
+            let poly_commitments = poly.borrow().commit_rows::<M1>(g1_generators, row_len);
+            all_commitments.push(poly_commitments);
+        }
+
+        all_commitments
     }
 
     /// Computes the vector-matrix product v = L^T * M where M is the polynomial as a matrix

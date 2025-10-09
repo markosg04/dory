@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+use ark_ec::bn::{G1Prepared as BnG1Prepared, G2Prepared as BnG2Prepared};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use ark_std::rand::RngCore;
 use std::fmt::Debug;
@@ -71,6 +72,18 @@ pub trait Pairing: Sized + Send + Sync {
             })
     }
 
+    fn prepare_g1(
+        points: Option<&[Self::G1]>,
+        count: Option<usize>,
+        cache: Option<&crate::curve::G1Cache>,
+    ) -> Vec<BnG1Prepared<ark_bn254::Config>>;
+
+    fn prepare_g2(
+        points: Option<&[Self::G2]>,
+        count: Option<usize>,
+        cache: Option<&crate::curve::G2Cache>,
+    ) -> Vec<BnG2Prepared<ark_bn254::Config>>;
+
     /// Multi-pairing with flexible caching support.
     ///
     /// For each side, you can either provide:
@@ -85,6 +98,11 @@ pub trait Pairing: Sized + Send + Sync {
         g2_points: Option<&[Self::G2]>,
         g2_count: Option<usize>,
         g2_cache: Option<&crate::curve::G2Cache>,
+    ) -> Self::GT;
+
+    fn multi_pair_prepared(
+        g1_prepared: &[BnG1Prepared<ark_bn254::Config>],
+        g2_prepared: &[BnG2Prepared<ark_bn254::Config>],
     ) -> Self::GT;
 }
 
