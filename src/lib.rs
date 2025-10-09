@@ -10,6 +10,7 @@ use crate::arithmetic::{Field, Group, MultiScalarMul, Pairing};
 use crate::error::DoryError;
 use crate::toy_transcript::ToyTranscript;
 use crate::transcript::Transcript;
+use std::borrow::Borrow;
 
 // use ark_serialize::CanonicalSerialize;
 use ark_std::rand::RngCore;
@@ -170,6 +171,41 @@ where
 {
     compute_polynomial_commitment::<E, M1, P, <E::G1 as Group>::Scalar, E::G1>(
         polynomial,
+        offset,
+        sigma,
+        prover_setup,
+    )
+}
+
+/// Commit to a batch of multilinear polynomials
+///
+/// This is a wrapper around `batch_compute_polynomial_commitment` that provides
+/// a simple interface for committing to polynomial coefficients.
+///
+/// # Parameters
+/// - `polynomials`: The batch of polynomials to commit to
+/// - `offset`: Starting offset in the coefficient array common to all
+/// - `sigma`: matrix to commit is of size 2^sigma common to all
+/// - `prover_setup`: The prover setup containing generators
+///
+/// # Returns
+/// A commitment element in the target group GT
+pub fn batch_commit<E, M1, P, U>(
+    polynomials: &[U],
+    offset: usize,
+    sigma: usize,
+    prover_setup: &ProverSetup<E>,
+) -> Vec<(E::GT, Vec<E::G1>)>
+where
+    E: Pairing,
+    M1: MultiScalarMul<E::G1>,
+    P: Polynomial<<E::G1 as Group>::Scalar, E::G1> + Sync,
+    E::G1: Group,
+    E::G2: Group<Scalar = <E::G1 as Group>::Scalar>,
+    U: Borrow<P> + Sync,
+{
+    batch_compute_polynomial_commitment::<E, M1, P, <E::G1 as Group>::Scalar, E::G1, U>(
+        polynomials,
         offset,
         sigma,
         prover_setup,

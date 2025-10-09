@@ -51,44 +51,51 @@ where
 
         /* ---------- COMPUTE D ---------- */
         // Collapsed Γ-vectors of length n/2 (Γ₁′, Γ₂′)
-        let g2_prime = &setup.g2_vec()[..1 << (self.nu - 1)];
         let g1_prime = &setup.g1_vec()[..1 << (self.nu - 1)];
+        let g2_prime = &setup.g2_vec()[..1 << (self.nu - 1)];
+        let g2_prime_count = 1 << (self.nu - 1);
 
-        let (d1_left, d1_right, d2_left, d2_right) =
-                // Use cached G2 if available, always use runtime G1
-                if setup.g2_cache.is_some() {
-                    let g2_prime_count = 1 << (self.nu - 1);
+        let (d1_left, d1_right, d2_left, d2_right) = {
+            // Use cached G2 if available, always use runtime G1
+            let span = tracing::span!(tracing::Level::DEBUG, "preparing_pairing_points");
+            let _guard = span.enter();
+            let g2_prime_prepared = if setup.g2_cache.is_some() {
+                E::prepare_g2(None, Some(g2_prime_count), setup.g2_cache.as_ref())
+            } else {
+                // use runtime points g2_prime
+                E::prepare_g2(Some(g2_prime), None, None)
+            };
 
-                    // D₁L,R = ⟨v₁L/R , Γ₂′⟩ - v1 is runtime, g2_prime uses cache
-                    let d1_left = E::multi_pair_cached(
-                        Some(v1_l),
-                        None,
-                        None, // G1: use runtime points v1_l
-                        None,
-                        Some(g2_prime_count),
-                        setup.g2_cache.as_ref(), // G2: use first 2^(nu-1) cached elements
-                    );
-                    let d1_right = E::multi_pair_cached(
-                        Some(v1_r),
-                        None,
-                        None, // G1: use runtime points v1_r
-                        None,
-                        Some(g2_prime_count),
-                        setup.g2_cache.as_ref(), // G2: use first 2^(nu-1) cached elements
-                    );
+            let v1_l_prepared = E::prepare_g1(Some(v1_l), None, None);
+            let v1_r_prepared = E::prepare_g1(Some(v1_r), None, None);
+            let g1_prime_prepared = E::prepare_g1(Some(g1_prime), None, None);
+            let v2_l_prepared = E::prepare_g2(Some(v2_l), None, None);
+            let v2_r_prepared = E::prepare_g2(Some(v2_r), None, None);
+            drop(_guard);
+            drop(span);
 
-                    // D₂L,R = ⟨Γ₁′ , v₂L/R⟩ - g1_prime is runtime, v2 is runtime
-                    let d2_left = E::multi_pair(g1_prime, v2_l);
-                    let d2_right = E::multi_pair(g1_prime, v2_r);
-                    (d1_left, d1_right, d2_left, d2_right)
-                } else {
-                    // Fallback to regular multi-pairing when cache is not available
-                    let d1_left = E::multi_pair(v1_l, g2_prime);
-                    let d1_right = E::multi_pair(v1_r, g2_prime);
-                    let d2_left = E::multi_pair(g1_prime, v2_l);
-                    let d2_right = E::multi_pair(g1_prime, v2_r);
-                    (d1_left, d1_right, d2_left, d2_right)
-                };
+            let jobs = vec![
+                ("d1_left", &v1_l_prepared, &g2_prime_prepared),
+                ("d1_right", &v1_r_prepared, &g2_prime_prepared),
+                ("d2_left", &g1_prime_prepared, &v2_l_prepared),
+                ("d2_right", &g1_prime_prepared, &v2_r_prepared),
+            ];
+
+            // compute all pairings in parallel
+            let _span = tracing::span!(tracing::Level::DEBUG, "computing_pairings").entered();
+            let results = jobs
+                .into_par_iter()
+                .map(|(_, g1_prep, g2_prep)| E::multi_pair_prepared(g1_prep, g2_prep))
+                .collect::<Vec<_>>();
+            assert_eq!(results.len(), 4);
+            let (d1_left, d1_right, d2_left, d2_right) = (
+                results[0].clone(),
+                results[1].clone(),
+                results[2].clone(),
+                results[3].clone(),
+            );
+            (d1_left, d1_right, d2_left, d2_right)
+        };
 
         /* ---------- COMPUTE E (for extended protocol) ---------- */
         // E₁β = ⟨Γ₁ , s₂⟩

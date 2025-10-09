@@ -10,6 +10,18 @@ pub trait Polynomial<F: Field, G1: Group<Scalar = F>> {
     /// Commits to rows of the polynomial when viewed as a matrix
     fn commit_rows<M1: MultiScalarMul<G1>>(&self, g1_generators: &[G1], row_len: usize) -> Vec<G1>;
 
+    /// Commits to a batch of polynomials' rows when viewed as matrices
+    /// Returns a vector of vectors, where each inner vector contains the row commitments for one polynomial
+    fn commit_with_batch<M1: MultiScalarMul<G1>, U>(
+        &self,
+        batch: &[U],
+        g1_generators: &[G1],
+        row_len: usize,
+    ) -> Vec<Vec<G1>>
+    where
+        Self: Sized,
+        U: std::borrow::Borrow<Self> + Sync;
+
     /// Computes the vector-matrix product v = L^T * M where M is the polynomial as a matrix
     ///
     /// # Arguments

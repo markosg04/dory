@@ -105,6 +105,9 @@ fn test_pcs_api_workflow() {
     let total_time = setup_time + commit_time + eval_time + verify_time;
     tracing::debug!("Total time: {:?}", total_time);
 
-    assert!(result.is_ok(), "PCS verification should succeed");
+    assert!(
+        result.is_ok(),
+        "PCS verification should succeed. {result:?}"
+    );
     tracing::debug!("PCS API test passed");
 }
