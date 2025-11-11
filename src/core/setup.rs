@@ -475,7 +475,7 @@ impl<E: Pairing> VerifierSetup<E> {
     /// Constructor from an existing prover setup
     pub fn from_prover_setup(prover_setup: &ProverSetup<E>) -> Self {
         // Since g1_vec has length n = 1 << (max_log_n / 2), we have max_log_n = 2 * log2(g1_vec.len())
-        let max_log_n = prover_setup.core.g1_vec.len().trailing_zeros() as usize;
+        let max_log_n = 2 * (prover_setup.core.g1_vec.len().trailing_zeros() as usize);
 
         let mut delta_1l = Vec::with_capacity(max_log_n + 1);
         let mut delta_1r = Vec::with_capacity(max_log_n + 1);
